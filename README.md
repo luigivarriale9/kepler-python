@@ -59,3 +59,18 @@ I cinque test automatici verificano:
 - Confronto sistematico con i risultati dei programmi MATLAB originali.
 - Studio di orbite con eccentricità diverse e di tempi di integrazione più lunghi.
 - Problema dei tre corpi ristretto circolare planare.
+
+### Orbite
+
+Orbite ottenute con e = 0.7, 5 orbite e 200 passi per orbita, confrontate con l'ellisse esatta (tratteggiata). Tutte partono dal pericentro.
+
+![Orbite](orbite.png)
+
+Con questo passo, relativamente grossolano:
+
+- **Eulero esplicito** diverge: l'energia cresce a ogni passo e l'orbita si apre fino a uscire dall'ellisse.
+- **Eulero simplettico** resta limitato, ma l'orbita numerica è deformata rispetto all'ellisse esatta.
+- **Punto medio** mantiene la forma e la dimensione dell'ellisse, ma l'asse maggiore ruota a ogni giro (errore di fase, non presente nel problema esatto).
+- **Störmer–Verlet** è il più vicino all'orbita esatta, con una precessione molto piccola.
+
+I metodi simplettici e simmetrici non hanno la deriva sistematica di energia di Eulero esplicito: l'errore dominante è di fase, e l'energia resta limitata. Il grafico si ottiene con `python3 orbite.py`.
