@@ -28,9 +28,10 @@ Kepler problem in normalised units (mu = 1, semi-major axis a = 1) with eccentri
 - `multistep.py`: Adams–Bashforth, Adams–Moulton and ABM4 (PECE) multistep methods.
 - `multistep_convergence.py`: observed orders of the multistep methods on the Kepler problem.
 - `multistep_orbits.py`: Kepler orbits computed with the multistep methods.
+- `local_optimisation.py`: Newton and gradient methods (steepest descent, conjugate gradient) for unconstrained minimisation, tested on the Rosenbrock function
 - `trajectory_optimisation.py`: global optimisation of an Earth–Mars transfer (Lambert solver and differential evolution); saves `figures/porkchop.png`.
 - `parallel_speedup.py`: strong-scaling test of the search with several worker processes; saves `figures/speedup.png`.
-- `tests/test_kepler.py`, `tests/test_multistep.py`, `tests/test_trajectory_optimisation.py`, `tests/test_parallel_speedup.py`: automated tests with pytest.
+- `tests/test_kepler.py`, `tests/test_multistep.py`, `tests/test_trajectory_optimisation.py`,`tests/test_local_optimisation.py`, `tests/test_parallel_speedup.py`: automated tests with pytest.
 - `requirements.txt`: required libraries.
 
 ## Usage
@@ -105,6 +106,28 @@ References: Curtis, *Orbital Mechanics for Engineering Students* (Lambert's prob
 Storn and Price, J. Global Optimization 11 (1997), 341-359; Virtanen et al.,
 Nature Methods 17 (2020), 261-272.
 
+### Local optimisation (Newton and gradient methods)
+
+`local_optimisation.py` is a Python version of the methods from the
+Scientific Computing labs 7-9 (a joint assignment, originally written in MATLAB):
+Newton, Newton with Armijo backtracking, steepest descent with Armijo
+backtracking, steepest descent with exact line search and conjugate gradient
+(the last two for symmetric positive definite linear systems).
+The translation to Python was done with the help of an AI assistant and then
+studied and tested by me.
+
+On the Rosenbrock function from (-1.2, 1), tolerance 1e-6 on the gradient norm:
+
+| Method | Iterations |
+|---|---|
+| Newton | 6 |
+| Newton + Armijo, step never reset | 174 |
+| Newton + Armijo, step reset to 1 at every iteration | 21 |
+| Steepest descent + Armijo | 32847 |
+
+A local method needs a good starting point; the global search above
+(differential evolution) does not.
+
 ### Orbits
 
 Orbits obtained with e = 0.7, 5 orbits and 200 steps per orbit, compared with the exact ellipse (dashed). All start from pericentre.
@@ -122,12 +145,10 @@ Symplectic and symmetric methods do not show the systematic energy drift of expl
 
 ## Tests
 
-The five automated tests check:
-
-- energy and angular momentum of the initial state against the theoretical values;
-- order 2 of Störmer–Verlet and order 1 of symplectic Euler, within a tolerance;
-- conservation of angular momentum with Störmer–Verlet over 10 orbits;
-- bounded energy (error below 1e-3) with Störmer–Verlet over 100 orbits.
+The repository has 25 automated tests (`pytest`): orders of convergence of the
+integrators, multistep methods, the Lambert problem and global optimisation,
+the parallel speedup experiment and the local optimisation methods. They run
+on every push with GitHub Actions.
 
 ## Possible extensions
 
