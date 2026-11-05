@@ -104,6 +104,33 @@ def conjgrad(x0, A, b, tau=1e-6):
     return xk, k
 
 
+def conjgrad_ls(A, b, x0, tol=1e-6):
+    """Gradiente coniugato per i minimi quadrati min ||Ax - b||^2 (A anche rettangolare).
+
+    Equivale a CG sulle equazioni normali A^T A x = A^T b, senza formare A^T A.
+    Ritorna (x, k).
+    """
+    A = np.asarray(A, dtype=float)
+    b = np.asarray(b, dtype=float)
+    x = np.asarray(x0, dtype=float).copy()
+    d = A @ x - b            # residuo
+    g = A.T @ d              # gradiente di 1/2 ||Ax - b||^2
+    p = -g
+    rho = g @ g
+    k = 0
+    while np.linalg.norm(g) > tol * np.linalg.norm(b) and k < x.size:
+        k += 1
+        Ap = A @ p
+        lam = rho / (Ap @ Ap)
+        x = x + lam * p
+        d = d + lam * Ap
+        g = A.T @ d
+        rho_new = g @ g
+        p = -g + (rho_new / rho) * p
+        rho = rho_new
+    return x, k
+
+
 if __name__ == "__main__":
     x0 = np.array([-1.2, 1.0])
     print("Rosenbrock from (-1.2, 1), tol 1e-6")
