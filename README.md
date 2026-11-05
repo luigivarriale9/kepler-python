@@ -1,76 +1,80 @@
-# Integratori numerici per il problema di Keplero
+# Numerical integrators for the Kepler problem
 
-Confronto di quattro integratori numerici applicati al problema di Keplero, riscritti in Python a partire dai programmi MATLAB sviluppati per la tesi magistrale in Matematica sugli integratori simplettici.
+A comparison of four numerical integrators applied to the Kepler problem, rewritten in Python from the MATLAB programs developed for my M.Sc. thesis in Mathematics on symplectic integrators.
 
-Metodi implementati:
+Implemented methods:
 
-- Eulero esplicito (ordine 1)
-- Eulero simplettico (ordine 1)
-- Punto medio implicito (ordine 2), risolto con `scipy.optimize.fsolve`
-- Störmer–Verlet (ordine 2)
+- Explicit Euler (order 1)
+- Symplectic Euler (order 1)
+- Implicit midpoint (order 2), solved with `scipy.optimize.fsolve`
+- Störmer–Verlet (order 2)
 
-## Problema
+## Problem
 
-Problema di Keplero in unità normalizzate (mu = 1, semiasse maggiore a = 1) con eccentricità e = 0.7, partendo dal pericentro. Lo stato è y = (x, y, vx, vy). Le quantità conservate sono l'energia E = -0.5 e il momento angolare L = sqrt(1 - e^2). La soluzione di riferimento è calcolata con `scipy.integrate.solve_ivp` (metodo DOP853, tolleranze 1e-13).
+Kepler problem in normalised units (mu = 1, semi-major axis a = 1) with eccentricity e = 0.7, starting from pericentre. The state is y = (x, y, vx, vy). The conserved quantities are the energy E = -0.5 and the angular momentum L = sqrt(1 - e^2). The reference solution is computed with `scipy.integrate.solve_ivp` (DOP853, tolerances 1e-13).
 
-## Struttura
+## Structure
 
-- `kepler.py`: forza, stato iniziale, energia, momento angolare, i quattro integratori, `integrate` e soluzione di riferimento.
-- `convergence.py`: studio di convergenza. Calcola l'errore globale a t = 3 per diversi passi, stima l'ordine osservato con un fit in scala log-log e salva `convergenza.png`.
-- `tests/test_kepler.py`: test automatici con pytest.
-- `requirements.txt`: librerie usate.
+- `kepler.py`: force, initial state, energy, angular momentum, the four integrators, `integrate` and the reference solution.
+- `convergence.py`: convergence study. Computes the global error at t = 3 for several step sizes, estimates the observed order with a log-log fit and saves `figures/convergence.png`.
+- `orbits.py`: orbit comparison for e = 0.7; saves `figures/orbits.png`.
+- `tests/test_kepler.py`: automated tests with pytest.
+- `requirements.txt`: required libraries.
 
-## Uso
+## Usage
 
 ```
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 python3 convergence.py
+python3 orbits.py
 pytest -v
 ```
 
-## Risultati
+## Results
 
-Ordini di convergenza osservati (errore globale a t = 3):
+### Convergence
 
-| Metodo | Ordine osservato |
+Observed convergence orders (global error at t = 3):
+
+| Method | Observed order |
 |---|---|
-| Eulero esplicito | 1.00 |
-| Eulero simplettico | 0.97 |
-| Punto medio implicito | 2.00 |
+| Explicit Euler | 1.00 |
+| Symplectic Euler | 0.97 |
+| Implicit midpoint | 2.00 |
 | Störmer–Verlet | 2.00 |
 
-![Convergenza](convergenza.png)
+![Convergence](figures/convergence.png)
 
-Nota: Eulero esplicito usa passi molto più piccoli (da 20000 a 160000 passi) degli altri metodi, perché con pochi passi non si trova nel regime asintotico e l'ordine osservato risulta sottostimato.
+Note: explicit Euler uses much smaller steps (20,000 to 160,000 steps) than the other methods, because with few steps it is not in the asymptotic regime and the observed order is underestimated.
 
-## Test
+### Orbits
 
-I cinque test automatici verificano:
+Orbits obtained with e = 0.7, 5 orbits and 200 steps per orbit, compared with the exact ellipse (dashed). All start from pericentre.
 
-- energia e momento angolare dello stato iniziale rispetto ai valori teorici;
-- ordine 2 di Störmer–Verlet e ordine 1 di Eulero simplettico, entro una tolleranza;
-- conservazione del momento angolare con Störmer–Verlet su 10 orbite;
-- energia limitata (errore sotto 1e-3) con Störmer–Verlet su 100 orbite.
+![Orbits](figures/orbits.png)
 
-## Sviluppi possibili
+With this relatively coarse step:
 
-- Confronto sistematico con i risultati dei programmi MATLAB originali.
-- Studio di orbite con eccentricità diverse e di tempi di integrazione più lunghi.
-- Problema dei tre corpi ristretto circolare planare.
+- **Explicit Euler** diverges: the energy grows at every step and the orbit opens up until it leaves the ellipse.
+- **Symplectic Euler** stays bounded, but the numerical orbit is distorted with respect to the exact ellipse.
+- **Implicit midpoint** keeps the shape and size of the ellipse, but the major axis rotates at every revolution (a phase error, absent in the exact problem).
+- **Störmer–Verlet** is the closest to the exact orbit, with a very small precession.
 
-### Orbite
+Symplectic and symmetric methods do not show the systematic energy drift of explicit Euler: the dominant error is a phase error, and the energy stays bounded.
 
-Orbite ottenute con e = 0.7, 5 orbite e 200 passi per orbita, confrontate con l'ellisse esatta (tratteggiata). Tutte partono dal pericentro.
+## Tests
 
-![Orbite](orbite.png)
+The five automated tests check:
 
-Con questo passo, relativamente grossolano:
+- energy and angular momentum of the initial state against the theoretical values;
+- order 2 of Störmer–Verlet and order 1 of symplectic Euler, within a tolerance;
+- conservation of angular momentum with Störmer–Verlet over 10 orbits;
+- bounded energy (error below 1e-3) with Störmer–Verlet over 100 orbits.
 
-- **Eulero esplicito** diverge: l'energia cresce a ogni passo e l'orbita si apre fino a uscire dall'ellisse.
-- **Eulero simplettico** resta limitato, ma l'orbita numerica è deformata rispetto all'ellisse esatta.
-- **Punto medio** mantiene la forma e la dimensione dell'ellisse, ma l'asse maggiore ruota a ogni giro (errore di fase, non presente nel problema esatto).
-- **Störmer–Verlet** è il più vicino all'orbita esatta, con una precessione molto piccola.
+## Possible extensions
 
-I metodi simplettici e simmetrici non hanno la deriva sistematica di energia di Eulero esplicito: l'errore dominante è di fase, e l'energia resta limitata. Il grafico si ottiene con `python3 orbite.py`.
+- Systematic comparison with the results of the original MATLAB programs.
+- Study of other eccentricities and longer integration times.
+- Planar circular restricted three-body problem.
