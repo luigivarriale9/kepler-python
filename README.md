@@ -30,8 +30,9 @@ Kepler problem in normalised units (mu = 1, semi-major axis a = 1) with eccentri
 - `multistep_orbits.py`: Kepler orbits computed with the multistep methods.
 - `local_optimisation.py`: Newton and gradient methods (steepest descent, conjugate gradient) for unconstrained minimisation, tested on the Rosenbrock function
 - `trajectory_optimisation.py`: global optimisation of an Earth–Mars transfer (Lambert solver and differential evolution); saves `figures/porkchop.png`.
+- `compare_local_global.py`: comparison of a local method (L-BFGS-B from random starting points) with differential evolution on the Earth–Mars cost
 - `parallel_speedup.py`: strong-scaling test of the search with several worker processes; saves `figures/speedup.png`.
-- `tests/test_kepler.py`, `tests/test_multistep.py`, `tests/test_trajectory_optimisation.py`,`tests/test_local_optimisation.py`, `tests/test_parallel_speedup.py`: automated tests with pytest.
+- `tests/test_kepler.py`, `tests/test_multistep.py`, `tests/test_trajectory_optimisation.py`,`tests/test_local_optimisation.py`, `tests/test_compare_local_global.py`, `tests/test_parallel_speedup.py`: automated tests with pytest.
 - `requirements.txt`: required libraries.
 
 ## Usage
@@ -106,6 +107,22 @@ References: Curtis, *Orbital Mechanics for Engineering Students* (Lambert's prob
 Storn and Price, J. Global Optimization 11 (1997), 341-359; Virtanen et al.,
 Nature Methods 17 (2020), 261-272.
 
+### Local versus global search
+
+`compare_local_global.py` runs a local method (`scipy.optimize.minimize`,
+L-BFGS-B with finite-difference gradients) from 100 random starting points on
+the Earth-Mars cost, and compares it with differential evolution.
+
+| Method | Reaches the 5.594 km/s minimum | Evaluations |
+|---|---|---|
+| L-BFGS-B, 100 random starts | 57 of 100 | about 80 per run |
+| Differential evolution | always (4 seeds) | 6000-12000 per run |
+
+The local method is much cheaper but depends on the starting point; the worst
+run ends at 10.47 km/s. Differential evolution costs more evaluations and finds
+the minimum from any seed. The local method here is SciPy's, not the one from
+`local_optimisation.py`, because the cost function has no analytic gradient or Hessian.
+
 ### Local optimisation (Newton and gradient methods)
 
 `local_optimisation.py` is a Python version of the methods from the
@@ -145,10 +162,7 @@ Symplectic and symmetric methods do not show the systematic energy drift of expl
 
 ## Tests
 
-The repository has 25 automated tests (`pytest`): orders of convergence of the
-integrators, multistep methods, the Lambert problem and global optimisation,
-the parallel speedup experiment and the local optimisation methods. They run
-on every push with GitHub Actions.
+The repository has 27 automated tests (`pytest`): orders of convergence of the integrators, multistep methods, the Lambert problem and global optimisation, the parallel speedup experiment, the local optimisation methods and the local versus global comparison. They run on every push with GitHub Actions.
 
 ## Possible extensions
 
