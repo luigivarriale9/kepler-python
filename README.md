@@ -1,3 +1,5 @@
+![tests](https://github.com/luigivarriale9/kepler-python/actions/workflows/tests.yml/badge.svg)
+
 # Numerical integrators for the Kepler problem
 
 A comparison of four numerical integrators applied to the Kepler problem, rewritten in Python from the MATLAB programs developed for my M.Sc. thesis in Mathematics on symplectic integrators.
