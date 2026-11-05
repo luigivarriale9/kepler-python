@@ -2,7 +2,7 @@
 
 # Numerical integrators for the Kepler problem
 
-A comparison of four numerical integrators applied to the Kepler problem, rewritten in Python from the MATLAB programs developed for my M.Sc. thesis in Mathematics on symplectic integrators.
+A comparison of numerical integrators applied to the Kepler problem, rewritten in Python from the MATLAB programs developed for my M.Sc. thesis in Mathematics on symplectic integrators, and extended with the Adams-type multistep methods of a numerical analysis course.
 
 Implemented methods:
 
@@ -10,6 +10,9 @@ Implemented methods:
 - Symplectic Euler (order 1)
 - Implicit midpoint (order 2), solved with `scipy.optimize.fsolve`
 - Störmer–Verlet (order 2)
+- Adams–Bashforth, 1 to 4 steps (order 1 to 4)
+- Adams–Moulton, 1 to 4 steps (order 2 to 5), implicit equation solved by fixed-point iteration
+- ABM4 predictor–corrector in PECE form (order 5)
 
 ## Problem
 
