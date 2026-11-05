@@ -28,7 +28,7 @@ Kepler problem in normalised units (mu = 1, semi-major axis a = 1) with eccentri
 - `multistep.py`: Adams–Bashforth, Adams–Moulton and ABM4 (PECE) multistep methods.
 - `multistep_convergence.py`: observed orders of the multistep methods on the Kepler problem.
 - `multistep_orbits.py`: Kepler orbits computed with the multistep methods.
-- `local_optimisation.py`: Newton and gradient methods (steepest descent, conjugate gradient) for unconstrained minimisation, tested on the Rosenbrock function
+- `local_optimisation.py`: Newton and gradient methods (steepest descent, conjugate gradient, least squares) for unconstrained minimisation, tested on the Rosenbrock function
 - `trajectory_optimisation.py`: global optimisation of an Earth–Mars transfer (Lambert solver and differential evolution); saves `figures/porkchop.png`.
 - `compare_local_global.py`: comparison of a local method (L-BFGS-B from random starting points) with differential evolution on the Earth–Mars cost
 - `parallel_speedup.py`: strong-scaling test of the search with several worker processes; saves `figures/speedup.png`.
@@ -128,10 +128,9 @@ the minimum from any seed. The local method here is SciPy's, not the one from
 `local_optimisation.py` is a Python version of the methods from the
 Scientific Computing labs 7-9 (a joint assignment, originally written in MATLAB):
 Newton, Newton with Armijo backtracking, steepest descent with Armijo
-backtracking, steepest descent with exact line search and conjugate gradient
-(the last two for symmetric positive definite linear systems).
-The translation to Python was done with the help of an AI assistant and then
-studied and tested by me.
+backtracking, steepest descent with exact line search, conjugate gradient
+(the last two for symmetric positive definite linear systems) and conjugate
+gradient for least squares problems.
 
 On the Rosenbrock function from (-1.2, 1), tolerance 1e-6 on the gradient norm:
 
@@ -162,7 +161,7 @@ Symplectic and symmetric methods do not show the systematic energy drift of expl
 
 ## Tests
 
-The repository has 27 automated tests (`pytest`): orders of convergence of the integrators, multistep methods, the Lambert problem and global optimisation, the parallel speedup experiment, the local optimisation methods and the local versus global comparison. They run on every push with GitHub Actions.
+The repository has 29 automated tests (`pytest`): orders of convergence of the integrators, multistep methods, the Lambert problem and global optimisation, the parallel speedup experiment, the local optimisation methods and the local versus global comparison. They run on every push with GitHub Actions.
 
 ## Possible extensions
 
