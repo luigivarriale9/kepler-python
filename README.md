@@ -20,7 +20,10 @@ Kepler problem in normalised units (mu = 1, semi-major axis a = 1) with eccentri
 - `kepler.py`: force, initial state, energy, angular momentum, the four integrators, `integrate` and the reference solution.
 - `convergence.py`: convergence study. Computes the global error at t = 3 for several step sizes, estimates the observed order with a log-log fit and saves `figures/convergence.png`.
 - `orbits.py`: orbit comparison for e = 0.7; saves `figures/orbits.png`.
-- `tests/test_kepler.py`: automated tests with pytest.
+- `multistep.py`: Adams–Bashforth, Adams–Moulton and ABM4 (PECE) multistep methods.
+- `multistep_convergence.py`: observed orders of the multistep methods on the Kepler problem.
+- `multistep_orbits.py`: Kepler orbits computed with the multistep methods.
+- `tests/test_kepler.py`, `tests/test_multistep.py`: automated tests with pytest.
 - `requirements.txt`: required libraries.
 
 ## Usage
@@ -50,6 +53,20 @@ Observed convergence orders (global error at t = 3):
 ![Convergence](figures/convergence.png)
 
 Note: explicit Euler uses much smaller steps (20,000 to 160,000 steps) than the other methods, because with few steps it is not in the asymptotic regime and the observed order is underestimated.
+
+### Multistep methods
+
+`multistep.py` adds Adams-type linear multistep methods: Adams–Bashforth (1 to 4 steps, order 1 to 4), Adams–Moulton (1 to 4 steps, order 2 to 5, implicit equation solved by fixed-point iteration) and the predictor–corrector scheme ABM4 in PECE form (AB4 predictor, AM4 corrector). Starting values are computed with DOP853.
+
+The observed orders on the test problem y' = -y, y(0) = 1 match the theoretical ones (checked by `tests/test_multistep.py`). On the Kepler problem (e = 0.7, global error at t = 3), the observed orders are AB2 ≈ 2.0, AB3 ≈ 2.9, AB4 ≈ 4.0 and ABM4 (PECE) ≈ 5.1 (`multistep_convergence.py`). With 1,000 steps, ABM4 (PECE) reaches an error of about 6e-8, against about 1.5e-5 for AB4.
+
+![Multistep convergence](figures/multistep_convergence.png)
+
+Orbits computed with a deliberately coarse step (2 periods, 1,000 steps): AB2 loses the shape of the orbit, while AB4 and ABM4 (PECE) follow the reference orbit. The difference between the last two shows up in the error at the final time (2.8e-1 for AB4 against 8.4e-3 for ABM4), which here is mostly a phase error along the orbit.
+
+![Multistep orbits](figures/multistep_orbits.png)
+
+These methods were first implemented in MATLAB for a joint assignment of the Scientific Computing course (2023/24) and are rewritten here from the formulas.
 
 ### Orbits
 
