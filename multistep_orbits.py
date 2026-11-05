@@ -2,7 +2,7 @@ import os
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.integrate import solve_ivp
-from multistep import adams_bashforth, abm4_pece
+from multistep import adams_bashforth, adams_moulton, abm4_pece
 
 e = 0.7
 periods, n = 2, 1000  # coarse step on purpose, to make the errors visible
@@ -20,24 +20,24 @@ ref = solve_ivp(f, (0, T), y0, method="DOP853", rtol=1e-13, atol=1e-13,
 t_ref = np.linspace(0, T, 2000)
 y_ref = ref.sol(t_ref)
 
-runs = {
-    "AB2": adams_bashforth(f, 0, T, y0, n, 2)[1],
-    "AB4": adams_bashforth(f, 0, T, y0, n, 4)[1],
-    "ABM4 (PECE)": abm4_pece(f, 0, T, y0, n)[1],
-}
+runs = {f"AB{k}": adams_bashforth(f, 0, T, y0, n, k)[1] for k in range(1, 5)}
+runs.update({f"AM{k}": adams_moulton(f, 0, T, y0, n, k)[1] for k in range(1, 5)})
+runs["ABM4 (PECE)"] = abm4_pece(f, 0, T, y0, n)[1]
 
 os.makedirs("figures", exist_ok=True)
-fig, axes = plt.subplots(1, len(runs), figsize=(13, 4.5), sharex=True, sharey=True)
-for ax, (name, y) in zip(axes, runs.items()):
+fig, axes = plt.subplots(3, 3, figsize=(14, 12), sharex=True, sharey=True)
+for ax, (name, y) in zip(axes.flat, runs.items()):
     err = np.linalg.norm(y[-1] - ref.y[:, -1])
     ax.plot(y_ref[0], y_ref[1], "k-", lw=1, label="DOP853 (reference)")
     ax.plot(y[:, 0], y[:, 1], "r-", lw=0.8, label=name)
     ax.plot(0, 0, "ko", ms=4)
     ax.set_title(f"{name}, error at final time: {err:.1e}")
     ax.set_aspect("equal")
-    ax.set_xlabel("x")
     ax.legend(loc="lower left", fontsize=8)
-axes[0].set_ylabel("y")
+for ax in axes[-1]:
+    ax.set_xlabel("x")
+for ax in axes[:, 0]:
+    ax.set_ylabel("y")
 fig.suptitle(f"Kepler orbit, e = {e}, {periods} periods, {n} steps")
 fig.tight_layout()
-plt.savefig("figures/multistep_orbits.png", dpi=150, bbox_inches="tight")
+plt.savefig("figures/multistep_orbits.png", dpi=130, bbox_inches="tight")

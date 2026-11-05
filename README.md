@@ -58,11 +58,17 @@ Note: explicit Euler uses much smaller steps (20,000 to 160,000 steps) than the 
 
 `multistep.py` adds Adams-type linear multistep methods: Adams–Bashforth (1 to 4 steps, order 1 to 4), Adams–Moulton (1 to 4 steps, order 2 to 5, implicit equation solved by fixed-point iteration) and the predictor–corrector scheme ABM4 in PECE form (AB4 predictor, AM4 corrector). Starting values are computed with DOP853.
 
-The observed orders on the test problem y' = -y, y(0) = 1 match the theoretical ones (checked by `tests/test_multistep.py`). On the Kepler problem (e = 0.7, global error at t = 3), the observed orders are AB2 ≈ 2.0, AB3 ≈ 2.9, AB4 ≈ 4.0 and ABM4 (PECE) ≈ 5.1 (`multistep_convergence.py`). With 1,000 steps, ABM4 (PECE) reaches an error of about 6e-8, against about 1.5e-5 for AB4.
+The observed orders on the test problem y' = -y, y(0) = 1 match the theoretical ones (checked by `tests/test_multistep.py`). On the Kepler problem (e = 0.7, global error at t = 3, `multistep_convergence.py`) the observed orders are:
+
+| Method | AB1 | AB2 | AB3 | AB4 | AM1 | AM2 | AM3 | AM4 | ABM4 (PECE) |
+|---|---|---|---|---|---|---|---|---|---|
+| Observed order | 0.95 | 1.99 | 2.93 | 3.97 | 2.00 | 2.95 | 3.98 | 4.52 | 5.09 |
+
+The value for AM4 is below the theoretical 5 because, for the smallest steps, its error approaches the accuracy of the DOP853 reference solution. With 1,000 steps, ABM4 (PECE) reaches an error of about 6e-8, against about 1.5e-5 for AB4.
 
 ![Multistep convergence](figures/multistep_convergence.png)
 
-Orbits computed with a deliberately coarse step (2 periods, 1,000 steps): AB2 loses the shape of the orbit, while AB4 and ABM4 (PECE) follow the reference orbit. The difference between the last two shows up in the error at the final time (2.8e-1 for AB4 against 8.4e-3 for ABM4), which here is mostly a phase error along the orbit.
+Orbits computed with a deliberately coarse step (2 periods, 1,000 steps, `multistep_orbits.py`) show the differences in accuracy. The error at the final time ranges from 4.2 for AB1 and 2.7 for AB2, whose orbits lose their shape, to 2.3e-2 for AM3, 8.4e-3 for ABM4 (PECE) and 5.7e-4 for AM4, which follow the reference orbit closely. At equal order, the implicit Adams–Moulton methods are more accurate than the explicit Adams–Bashforth ones.
 
 ![Multistep orbits](figures/multistep_orbits.png)
 
