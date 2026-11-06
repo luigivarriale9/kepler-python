@@ -6,6 +6,8 @@ Kepler integrators, Adams-type multistep methods and global trajectory optimisat
 
 A comparison of numerical integrators applied to the Kepler problem, rewritten in Python from the MATLAB programs developed for my M.Sc. thesis in Mathematics on symplectic integrators, and extended with the Adams-type multistep methods of a numerical analysis course.
 
+The MATLAB versions are in [numerical-methods-matlab](https://github.com/luigivarriale9/numerical-methods-matlab).
+
 Implemented methods:
 
 - Explicit Euler (order 1)
@@ -18,12 +20,12 @@ Implemented methods:
 
 ## Problem
 
-Kepler problem in normalised units (mu = 1, semi-major axis a = 1) with eccentricity e = 0.7, starting from pericentre. The state is y = (x, y, vx, vy). The conserved quantities are the energy E = -0.5 and the angular momentum L = sqrt(1 - e^2). The reference solution is computed with `scipy.integrate.solve_ivp` (DOP853, tolerances 1e-13).
+Kepler problem in normalised units (mu = 1, semi-major axis a = 1) with eccentricity e = 0.7, starting from pericentre. The state is y = (x, y, vx, vy). The conserved quantities are the energy E = -0.5 and the angular momentum L = sqrt(1 - e^2). The reference is the exact solution of Kepler's equation, solved with Newton's method (`kepler_position` in `convergence.py`). DOP853 (tolerances 1e-13) provides the starting values of the multistep methods.
 
 ## Structure
 
 - `kepler.py`: force, initial state, energy, angular momentum, the four integrators, `integrate` and the reference solution.
-- `convergence.py`: convergence study. Computes the global error at t = 3 for several step sizes, estimates the observed order with a log-log fit and saves `figures/convergence.png`.
+- `convergence.py`: convergence study. Computes the global position error at t = 3 against the exact solution for several step sizes, estimates the observed order with a log-log fit and saves `figures/convergence.png`.
 - `orbits.py`: orbit comparison for e = 0.7; saves `figures/orbits.png`.
 - `multistep.py`: Adams–Bashforth, Adams–Moulton and ABM4 (PECE) multistep methods.
 - `multistep_convergence.py`: observed orders of the multistep methods on the Kepler problem.
@@ -76,19 +78,20 @@ to the four significant digits compared (20 values: 4 methods × 5 step counts).
 `multistep.py` adds Adams-type linear multistep methods: Adams–Bashforth (1 to 4 steps, order 1 to 4), Adams–Moulton (1 to 4 steps, order 2 to 5, implicit equation solved by fixed-point iteration) and the predictor–corrector scheme ABM4 in PECE form (AB4 predictor, AM4 corrector). Starting values are computed with DOP853.
 
 The observed orders on the test problem y' = -y, y(0) = 1 match the theoretical ones (checked by `tests/test_multistep.py`). On the Kepler problem (e = 0.7, position error at t = 3 against the exact solution of Kepler's equation, n = 250 … 4000 steps, `multistep_convergence.py`) the observed orders are:
+
 | Method | AB1 | AB2 | AB3 | AB4 | AM1 | AM2 | AM3 | AM4 | ABM4 (PECE) |
 |---|---|---|---|---|---|---|---|---|---|
 | Observed order | 0.93 | 1.99 | 2.88 | 3.95 | 2.00 | 2.91 | 3.97 | 5.31 | 5.00 |
 
-AB1 coincides with explicit Euler. AM4 reads slightly above 5 because its finest errors (about 4e-12) are close to the accuracy of the starting values. With 1,000 steps, ABM4 (PECE) reaches an error of about 5e-8, against about 1.3e-5 for AB4. The errors agree with the MATLAB implementation ([numerical-methods-matlab](https://github.com/luigivarriale9/numerical-methods-matlab)): 41 of the 45 values (9 methods × 5 step counts) match to four significant digits; the other four are at the finest steps, and AM4 at n = 4000 differs by about 3%. 
+AB1 coincides with explicit Euler. AM4 reads slightly above 5 because its finest errors (about 4e-12) are close to the accuracy of the starting values. With 1,000 steps, ABM4 (PECE) reaches an error of about 5e-8, against about 1.3e-5 for AB4. The errors agree with the MATLAB implementation ([numerical-methods-matlab](https://github.com/luigivarriale9/numerical-methods-matlab)): 41 of the 45 values (9 methods × 5 step counts) match to four significant digits; the other four are at the finest steps, and AM4 at n = 4000 differs by about 3%.
 
 ![Multistep convergence](figures/multistep_convergence.png)
 
-Orbits computed with a deliberately coarse step (2 periods, 1,000 steps, `multistep_orbits.py`) show the differences in accuracy. The error at the final time ranges from 4.2 for AB1 and 2.7 for AB2, whose orbits lose their shape, to 2.3e-2 for AM3, 8.4e-3 for ABM4 (PECE) and 5.7e-4 for AM4, which follow the reference orbit closely. At equal order, the implicit Adams–Moulton methods are more accurate than the explicit Adams–Bashforth ones.
+Orbits computed with a deliberately coarse step (2 periods, 1,000 steps, `multistep_orbits.py`) show the differences in accuracy. The position error at the final time, against the exact solution, ranges from 3.4 for AB1 and 1.1 for AB2, whose orbits lose their shape, to 4.9e-3 for AM3, 1.8e-3 for ABM4 (PECE) and 1.2e-4 for AM4, which follow the exact orbit closely. At equal order, the implicit Adams–Moulton methods are more accurate than the explicit Adams–Bashforth ones.
 
 ![Multistep orbits](figures/multistep_orbits.png)
 
-These methods were first implemented in MATLAB for a joint assignment of the Scientific Computing course (2023/24) and are rewritten here from the formulas.
+These methods were first implemented in MATLAB for the Scientific Computing course (2023/24) and are rewritten here from the formulas.
 
 ### Global trajectory optimisation (differential evolution)
 
@@ -133,7 +136,7 @@ the minimum from any seed. The local method here is SciPy's, not the one from
 ### Local optimisation (Newton and gradient methods)
 
 `local_optimisation.py` is a Python version of the methods from the
-Scientific Computing labs 7-9 (a joint assignment, originally written in MATLAB):
+Scientific Computing labs 7-9 (originally written in MATLAB):
 Newton, Newton with Armijo backtracking, steepest descent with Armijo
 backtracking, steepest descent with exact line search, conjugate gradient
 (the last two for symmetric positive definite linear systems) and conjugate
@@ -168,10 +171,10 @@ Symplectic and symmetric methods do not show the systematic energy drift of expl
 
 ## Tests
 
-The repository has 29 automated tests (`pytest`): orders of convergence of the integrators, multistep methods, the Lambert problem and global optimisation, the parallel speedup experiment, the local optimisation methods and the local versus global comparison. They run on every push with GitHub Actions.
+The repository has automated tests (`pytest`): orders of convergence of the integrators, multistep methods, the Lambert problem and global optimisation, the parallel speedup experiment, the local optimisation methods and the local versus global comparison. They run on every push with GitHub Actions.
 
 ## Possible extensions
 
-- Systematic comparison with the results of the original MATLAB programs.
+- Comparison with the MATLAB implementations beyond the convergence studies (long-time energy and angular momentum).
 - Study of other eccentricities and longer integration times.
 - Planar circular restricted three-body problem.
