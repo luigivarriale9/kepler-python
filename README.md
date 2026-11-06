@@ -50,18 +50,26 @@ pytest -v
 
 ### Convergence
 
-Observed convergence orders (global error at t = 3):
+Global position error at t = 3 for the Kepler problem (e = 0.7, pericentre start),
+measured against the exact solution of Kepler's equation. All four methods use the
+same step counts (n = 250 … 4000).
 
 | Method | Observed order |
 |---|---|
-| Explicit Euler | 1.00 |
-| Symplectic Euler | 0.97 |
+| Explicit Euler | 0.93 |
+| Symplectic Euler | 0.95 |
 | Implicit midpoint | 2.00 |
 | Störmer–Verlet | 2.00 |
 
 ![Convergence](figures/convergence.png)
 
-Note: explicit Euler uses much smaller steps (20,000 to 160,000 steps) than the other methods, because with few steps it is not in the asymptotic regime and the observed order is underestimated.
+The final time is t = 3 rather than one full period: at t = 2π the symmetry of the
+orbit hides the first-order error of symplectic Euler and the fitted order would
+read about 2.
+
+**Cross-validation.** The errors agree with the MATLAB implementation
+([numerical-methods-matlab](https://github.com/luigivarriale9/numerical-methods-matlab))
+to the four significant digits compared (20 values: 4 methods × 5 step counts).
 
 ### Multistep methods
 
