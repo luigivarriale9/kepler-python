@@ -1,6 +1,7 @@
 import numpy as np
 import pytest
-from kepler import initial_state, rhs, reference
+from kepler import initial_state, rhs
+from convergence import kepler_position
 from multistep import adams_bashforth, adams_moulton, abm4_pece
 
 
@@ -38,7 +39,7 @@ def test_pece_matches_known_error():
 
 def test_pece_on_kepler_beats_ab4():
     y0, t_end, n = initial_state(0.7), 3.0, 500
-    y_ref = reference(y0, t_end)
-    e_pece = np.linalg.norm(abm4_pece(rhs, 0.0, t_end, y0, n)[1][-1] - y_ref)
-    e_ab4 = np.linalg.norm(adams_bashforth(rhs, 0.0, t_end, y0, n, 4)[1][-1] - y_ref)
+    q_exact = kepler_position(0.7, t_end)
+    e_pece = np.linalg.norm(abm4_pece(rhs, 0.0, t_end, y0, n)[1][-1][:2] - q_exact)
+    e_ab4 = np.linalg.norm(adams_bashforth(rhs, 0.0, t_end, y0, n, 4)[1][-1][:2] - q_exact)
     assert e_pece < e_ab4

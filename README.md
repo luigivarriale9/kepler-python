@@ -75,13 +75,12 @@ to the four significant digits compared (20 values: 4 methods × 5 step counts).
 
 `multistep.py` adds Adams-type linear multistep methods: Adams–Bashforth (1 to 4 steps, order 1 to 4), Adams–Moulton (1 to 4 steps, order 2 to 5, implicit equation solved by fixed-point iteration) and the predictor–corrector scheme ABM4 in PECE form (AB4 predictor, AM4 corrector). Starting values are computed with DOP853.
 
-The observed orders on the test problem y' = -y, y(0) = 1 match the theoretical ones (checked by `tests/test_multistep.py`). On the Kepler problem (e = 0.7, global error at t = 3, `multistep_convergence.py`) the observed orders are:
-
+The observed orders on the test problem y' = -y, y(0) = 1 match the theoretical ones (checked by `tests/test_multistep.py`). On the Kepler problem (e = 0.7, position error at t = 3 against the exact solution of Kepler's equation, n = 250 … 4000 steps, `multistep_convergence.py`) the observed orders are:
 | Method | AB1 | AB2 | AB3 | AB4 | AM1 | AM2 | AM3 | AM4 | ABM4 (PECE) |
 |---|---|---|---|---|---|---|---|---|---|
-| Observed order | 0.95 | 1.99 | 2.93 | 3.97 | 2.00 | 2.95 | 3.98 | 4.52 | 5.09 |
+| Observed order | 0.93 | 1.99 | 2.88 | 3.95 | 2.00 | 2.91 | 3.97 | 5.31 | 5.00 |
 
-The value for AM4 is below the theoretical 5 because, for the smallest steps, its error approaches the accuracy of the DOP853 reference solution. With 1,000 steps, ABM4 (PECE) reaches an error of about 6e-8, against about 1.5e-5 for AB4.
+AB1 coincides with explicit Euler. AM4 reads slightly above 5 because its finest errors (about 4e-12) are close to the accuracy of the starting values. With 1,000 steps, ABM4 (PECE) reaches an error of about 5e-8, against about 1.3e-5 for AB4. The errors agree with the MATLAB implementation ([numerical-methods-matlab](https://github.com/luigivarriale9/numerical-methods-matlab)): 41 of the 45 values (9 methods × 5 step counts) match to four significant digits; the other four are at the finest steps, and AM4 at n = 4000 differs by about 3%. 
 
 ![Multistep convergence](figures/multistep_convergence.png)
 
