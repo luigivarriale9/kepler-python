@@ -31,7 +31,7 @@ Kepler problem in normalised units (mu = 1, semi-major axis a = 1) with eccentri
 - `multistep_convergence.py`: observed orders of the multistep methods on the Kepler problem.
 - `multistep_orbits.py`: Kepler orbits computed with the multistep methods.
 - `local_optimisation.py`: Newton and gradient methods (steepest descent, conjugate gradient, least squares) for unconstrained minimisation, tested on the Rosenbrock function
-- `trajectory_optimisation.py`: global optimisation of an Earth–Mars transfer (Lambert solver and differential evolution); saves `figures/porkchop.png`.
+- `trajectory_optimisation.py`: global optimisation of an Earth–Mars or Earth–Venus transfer (Lambert solver and differential evolution), with a circular coplanar model and a model with real ephemerides (astropy); saves pork-chop plots in `figures/`.
 - `compare_local_global.py`: comparison of a local method (L-BFGS-B from random starting points) with differential evolution on the Earth–Mars cost
 - `parallel_speedup.py`: strong-scaling test of the search with several worker processes; saves `figures/speedup.png`.
 - `tests/test_kepler.py`, `tests/test_multistep.py`, `tests/test_trajectory_optimisation.py`,`tests/test_local_optimisation.py`, `tests/test_compare_local_global.py`, `tests/test_parallel_speedup.py`: automated tests with pytest.
@@ -45,6 +45,9 @@ source .venv/bin/activate
 pip install -r requirements.txt
 python3 convergence.py
 python3 orbits.py
+python3 trajectory_optimisation.py mars
+python3 trajectory_optimisation.py venus --start 2026-10-01 --end 2028-12-01
+python3 trajectory_optimisation.py mars --model circular
 pytest -v
 ```
 
@@ -96,12 +99,29 @@ These methods were first implemented in MATLAB for the Scientific Computing cour
 ### Global trajectory optimisation (differential evolution)
 
 `trajectory_optimisation.py` searches the departure date and time of flight of an
-Earth-Mars transfer with `scipy.optimize.differential_evolution`. The model is
-simplified (circular coplanar planets, two-body dynamics, Lambert problem solved
-with universal variables). The minimum found, 5.594 km/s, matches the Hohmann
-transfer, which validates the Lambert solver and the search.
+Earth–Mars or Earth–Venus transfer with `scipy.optimize.differential_evolution`.
+Each candidate transfer is a Lambert problem solved with universal variables.
+The cost is the sum of the departure and arrival excess speeds. Two models are available:
 
-![Pork-chop plot](figures/porkchop.png)
+- **Circular model**: circular coplanar planets, two-body dynamics. The minimum found
+  (Mars 5.594 km/s, Venus 5.202 km/s) matches the Hohmann transfer, which validates
+  the Lambert solver and the search.
+- **Ephemeris model (default)**: real heliocentric positions and velocities from the
+  astropy built-in ephemeris (cubic Hermite interpolation), 3D Lambert problem. In the
+  departure window 2026-10-01 to 2028-12-01 the search finds, for Mars, departure
+  2026-10-31, 310 days, arrival 2027-09-06, 5.61 km/s; for Venus, departure 2028-01-10,
+  195 days, arrival 2028-07-24, 8.11 km/s.
+
+The destination and the model are chosen from the command line (see Usage). The model
+uses patched conics (no gravity assists, no parking orbit) and the results are not
+compared with mission data. The astropy built-in ephemeris is less accurate than the
+JPL ones.
+
+![Earth–Mars pork-chop plot, real ephemerides](figures/porkchop_mars_ephemeris.png)
+
+![Earth–Venus pork-chop plot, real ephemerides](figures/porkchop_venus_ephemeris.png)
+
+The parallel and local-versus-global experiments below use the circular Earth–Mars cost.
 
 `parallel_speedup.py` measures the strong scaling of the search with an increasing
 number of worker processes. To mimic a more expensive model, the cost function is
@@ -171,7 +191,7 @@ Symplectic and symmetric methods do not show the systematic energy drift of expl
 
 ## Tests
 
-The repository has automated tests (`pytest`): orders of convergence of the integrators, multistep methods, the Lambert problem and global optimisation, the parallel speedup experiment, the local optimisation methods and the local versus global comparison. They run on every push with GitHub Actions.
+The repository has automated tests (`pytest`): orders of convergence of the integrators, multistep methods, the Lambert problem and global optimisation (circular and real-ephemeris models), the parallel speedup experiment, the local optimisation methods and the local versus global comparison. They run on every push with GitHub Actions.
 
 ## Possible extensions
 
