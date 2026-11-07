@@ -30,11 +30,12 @@ Kepler problem in normalised units (mu = 1, semi-major axis a = 1) with eccentri
 - `multistep.py`: Adams–Bashforth, Adams–Moulton and ABM4 (PECE) multistep methods.
 - `multistep_convergence.py`: observed orders of the multistep methods on the Kepler problem.
 - `multistep_orbits.py`: Kepler orbits computed with the multistep methods.
+- `gauss_jackson.py`: Gauss–Jackson (Störmer–Cowell) integrator for second-order problems.
 - `local_optimisation.py`: Newton and gradient methods (steepest descent, conjugate gradient, least squares) for unconstrained minimisation, tested on the Rosenbrock function
 - `trajectory_optimisation.py`: global optimisation of an Earth–Mars or Earth–Venus transfer (Lambert solver and differential evolution), with a circular coplanar model and a model with real ephemerides (astropy); saves pork-chop plots in `figures/`.
 - `compare_local_global.py`: comparison of a local method (L-BFGS-B from random starting points) with differential evolution on the Earth–Mars cost
 - `parallel_speedup.py`: strong-scaling test of the search with several worker processes; saves `figures/speedup.png`.
-- `tests/test_kepler.py`, `tests/test_multistep.py`, `tests/test_trajectory_optimisation.py`,`tests/test_local_optimisation.py`, `tests/test_compare_local_global.py`, `tests/test_parallel_speedup.py`: automated tests with pytest.
+- `tests/test_kepler.py`, `tests/test_multistep.py`, `tests/test_gauss_jackson.py`, `tests/test_trajectory_optimisation.py`,`tests/test_local_optimisation.py`, `tests/test_compare_local_global.py`, `tests/test_parallel_speedup.py`: automated tests with pytest.
 - `requirements.txt`: required libraries.
 
 ## Usage
@@ -76,6 +77,21 @@ read about 2.
 ([numerical-methods-matlab](https://github.com/luigivarriale9/numerical-methods-matlab))
 to the four significant digits compared (20 values: 4 methods × 5 step counts).
 
+### Orbits
+
+Orbits obtained with e = 0.7, 5 orbits and 200 steps per orbit, compared with the exact ellipse (dashed). All start from pericentre.
+
+![Orbits](figures/orbits.png)
+
+With this relatively coarse step:
+
+- **Explicit Euler** diverges: the energy grows at every step and the orbit opens up until it leaves the ellipse.
+- **Symplectic Euler** stays bounded, but the numerical orbit is distorted with respect to the exact ellipse.
+- **Implicit midpoint** keeps the shape and size of the ellipse, but the major axis rotates at every revolution (a phase error, absent in the exact problem).
+- **Störmer–Verlet** is the closest to the exact orbit, with a very small precession.
+
+Symplectic and symmetric methods do not show the systematic energy drift of explicit Euler: the dominant error is a phase error, and the energy stays bounded.
+
 ### Multistep methods
 
 `multistep.py` adds Adams-type linear multistep methods: Adams–Bashforth (1 to 4 steps, order 1 to 4), Adams–Moulton (1 to 4 steps, order 2 to 5, implicit equation solved by fixed-point iteration) and the predictor–corrector scheme ABM4 in PECE form (AB4 predictor, AM4 corrector). Starting values are computed with DOP853.
@@ -95,6 +111,25 @@ Orbits computed with a deliberately coarse step (2 periods, 1,000 steps, `multis
 ![Multistep orbits](figures/multistep_orbits.png)
 
 These methods were first implemented in MATLAB for the Scientific Computing course (2023/24) and are rewritten here from the formulas.
+
+### Gauss–Jackson integrator
+
+`gauss_jackson.py` is a fixed-step multistep method for second-order problems y'' = f(t, y), in backward-difference form: Störmer predictor, Cowell corrector (one PECE correction, default order 8), with velocities from Adams–Bashforth–Moulton. The coefficients are generated in exact rational arithmetic from their generating functions, and the starting values come from DOP853 (rtol 1e-13).
+
+```python
+from gauss_jackson import gauss_jackson
+t, Y, V = gauss_jackson(f, t0, y0, v0, h, n_steps, order=8)
+```
+
+Checked by `tests/test_gauss_jackson.py`:
+
+- the coefficients equal the tabulated Störmer, Cowell, Adams–Bashforth and Adams–Moulton values;
+- polynomial solutions are reproduced exactly;
+- Kepler orbit, e = 0.7, against the exact solution (800 → 1600 steps): observed orders 6.2 for order 4 and 7.7 for order 6, i.e. about order + 2 for the position error; for order 8 the error reaches about 1e-11, the floor set by the starting values and round-off, so only the first refinement is meaningful (observed 8.5);
+- 10 periods at 400 steps per period: maximum energy error 9e-7, against 1.4e-5 for classical RK4;
+- J2 perturbation: the nodal precession rate matches -1.5 J2 n (R/p)^2 cos i within 2%.
+
+This is the difference form, not the summed-ordinate form of Berry and Healy. Reference: D. A. Vallado, *Fundamentals of Astrodynamics and Applications*, Sec. 7.5.
 
 ### Global trajectory optimisation (differential evolution)
 
@@ -174,24 +209,9 @@ On the Rosenbrock function from (-1.2, 1), tolerance 1e-6 on the gradient norm:
 A local method needs a good starting point; the global search above
 (differential evolution) does not.
 
-### Orbits
-
-Orbits obtained with e = 0.7, 5 orbits and 200 steps per orbit, compared with the exact ellipse (dashed). All start from pericentre.
-
-![Orbits](figures/orbits.png)
-
-With this relatively coarse step:
-
-- **Explicit Euler** diverges: the energy grows at every step and the orbit opens up until it leaves the ellipse.
-- **Symplectic Euler** stays bounded, but the numerical orbit is distorted with respect to the exact ellipse.
-- **Implicit midpoint** keeps the shape and size of the ellipse, but the major axis rotates at every revolution (a phase error, absent in the exact problem).
-- **Störmer–Verlet** is the closest to the exact orbit, with a very small precession.
-
-Symplectic and symmetric methods do not show the systematic energy drift of explicit Euler: the dominant error is a phase error, and the energy stays bounded.
-
 ## Tests
 
-The repository has automated tests (`pytest`): orders of convergence of the integrators, multistep methods, the Lambert problem and global optimisation (circular and real-ephemeris models), the parallel speedup experiment, the local optimisation methods and the local versus global comparison. They run on every push with GitHub Actions.
+The repository has automated tests (`pytest`): orders of convergence of the integrators, multistep methods, the Gauss–Jackson integrator, the Lambert problem and global optimisation (circular and real-ephemeris models), the parallel speedup experiment, the local optimisation methods and the local versus global comparison. They run on every push with GitHub Actions.
 
 ## Possible extensions
 
