@@ -30,12 +30,14 @@ Kepler problem in normalised units (mu = 1, semi-major axis a = 1) with eccentri
 - `multistep.py`: Adams–Bashforth, Adams–Moulton and ABM4 (PECE) multistep methods.
 - `multistep_convergence.py`: observed orders of the multistep methods on the Kepler problem.
 - `multistep_orbits.py`: Kepler orbits computed with the multistep methods.
+- `variational.py`, `variational_study.py`: variational equations and state-transition matrix for each integrator; symplecticity check and linear versus Monte Carlo covariance; saves `figures/variational_*.png`.
+- `pcr3bp.py`: planar circular restricted three-body problem (model, Hamiltonian, Jacobi constant) and the Arenstorf orbit.
 - `gauss_jackson.py`: Gauss–Jackson (Störmer–Cowell) integrator for second-order problems.
 - `local_optimisation.py`: Newton and gradient methods (steepest descent, conjugate gradient, least squares) for unconstrained minimisation, tested on the Rosenbrock function
 - `trajectory_optimisation.py`: global optimisation of an Earth–Mars or Earth–Venus transfer (Lambert solver and differential evolution), with a circular coplanar model and a model with real ephemerides (astropy); saves pork-chop plots in `figures/`.
 - `compare_local_global.py`: comparison of a local method (L-BFGS-B from random starting points) with differential evolution on the Earth–Mars cost
 - `parallel_speedup.py`: strong-scaling test of the search with several worker processes; saves `figures/speedup.png`.
-- `tests/test_kepler.py`, `tests/test_multistep.py`, `tests/test_gauss_jackson.py`, `tests/test_trajectory_optimisation.py`,`tests/test_local_optimisation.py`, `tests/test_compare_local_global.py`, `tests/test_parallel_speedup.py`: automated tests with pytest.
+- `tests/test_kepler.py`, `tests/test_multistep.py`, `tests/test_gauss_jackson.py`, `tests/test_variational.py`, `tests/test_pcr3bp.py`, `tests/test_trajectory_optimisation.py`,`tests/test_local_optimisation.py`, `tests/test_compare_local_global.py`, `tests/test_parallel_speedup.py`: automated tests with pytest.
 - `requirements.txt`: required libraries.
 
 ## Usage
@@ -91,6 +93,36 @@ With this relatively coarse step:
 - **Störmer–Verlet** is the closest to the exact orbit, with a very small precession.
 
 Symplectic and symmetric methods do not show the systematic energy drift of explicit Euler: the dominant error is a phase error, and the energy stays bounded.
+
+### State-transition matrix and uncertainty
+
+`variational.py` integrates the variational equations together with the state, so that the state-transition matrix Φ = ∂x(t)/∂x₀ is available for every method. For the symplectic schemes the Jacobian of one step is written out explicitly; for explicit Euler and RK4 the method is applied to the augmented system (state and Φ, 20 equations). In every case Φ is the exact Jacobian of the numerical map, not a finite-difference estimate (checked in `tests/test_variational.py`).
+
+The exact flow of a Hamiltonian system is symplectic: ΦᵀJΦ = J and det Φ = 1, with J = [[0, I], [−I, 0]]. This is Poincaré's theorem and the symplecticity criterion for Runge–Kutta methods (Hairer, Lubich and Wanner, ref. [1]); here it is checked numerically (e = 0.7, 20 periods, 500 steps per period, `variational_study.py`):
+
+| Method | ‖ΦᵀJΦ − J‖ after 1 period | after 20 periods | det Φ − 1 after 20 periods |
+|---|---|---|---|
+| Explicit Euler | 7.7e-01 | 5.3e+02 (orbit has left the ellipse) | −2.1e-01 |
+| Symplectic Euler | 1.3e-10 | 1.5e-07 | −4.5e-09 |
+| Implicit midpoint | 3.7e-11 | 4.6e-08 | −1.8e-11 |
+| Störmer–Verlet | 3.5e-11 | 1.1e-08 | 7.8e-12 |
+| RK4 (not symplectic) | 5.1e-04 | 1.6e-01 | −1.4e-05 |
+
+![Symplecticity of the transition matrix](figures/variational_symplecticity.png)
+
+The three symplectic methods stay at the level of round-off amplified by ‖Φ‖ (about 2·10³ in spectral norm after one period for e = 0.7), whereas RK4 drifts steadily even though its trajectory is far more accurate. The matrix Φ of Störmer–Verlet converges with order 2 (observed 1.98).
+
+**Linear covariance.** With an initial covariance P₀ = σ²I, the linear propagation P(t) = Φ P₀ Φᵀ is compared with the sample covariance of a Monte Carlo cloud (2,000 points, exact flow computed with DOP853). The relative error stays below 10% for σ = 10⁻⁵ over the 10 periods computed, but is already 16% after 2 periods for σ = 10⁻⁴ and 78% after 1 period for σ = 10⁻³: along the orbit the cloud is stretched along-track and stops being Gaussian, because the period depends on the energy.
+
+![Linear covariance versus Monte Carlo](figures/variational_covariance.png)
+
+### Planar circular restricted three-body problem
+
+`pcr3bp.py` contains the model of the planar circular restricted three-body problem in the rotating frame (normalised units, μ = 0.012277471, Earth–Moon case): the equations of motion in the variables (x, y, vx, vy), the change to the canonical variables q = (x, y), p = (vx − y, vy + x), the Hamiltonian H = ½|p|² + y pₓ − x p_y − (1 − μ)/r₁ − μ/r₂ and the Jacobi constant C = −2H. The test case is the periodic Arenstorf orbit (initial data and period from Hairer, Nørsett and Wanner; the digits were checked by closing the orbit).
+
+Checked by `tests/test_pcr3bp.py`: the canonical change of variables is invertible, H equals the energy written with the velocities, the orbit closes after one period (distance from the initial state 1.8e-09 with DOP853) and the Jacobi constant is conserved along it (variation 1e-11 around C = 2.8564).
+
+The comparison of explicit Euler, symplectic Euler, implicit midpoint and Störmer–Verlet on this orbit is in the MATLAB repository ([numerical-methods-matlab](https://github.com/luigivarriale9/numerical-methods-matlab)). In the rotating frame the force depends on the velocity (Coriolis term), so the classical Störmer–Verlet scheme is only first order there; a generalised scheme in canonical variables is planned but not yet implemented here.
 
 ### Multistep methods
 
@@ -168,9 +200,7 @@ moving data.
 
 ![Speedup](figures/speedup.png)
 
-References: Curtis, *Orbital Mechanics for Engineering Students* (Lambert's problem);
-Storn and Price, J. Global Optimization 11 (1997), 341-359; Virtanen et al.,
-Nature Methods 17 (2020), 261-272.
+References: see the Bibliography at the end.
 
 ### Local versus global search
 
@@ -211,10 +241,43 @@ A local method needs a good starting point; the global search above
 
 ## Tests
 
-The repository has automated tests (`pytest`): orders of convergence of the integrators, multistep methods, the Gauss–Jackson integrator, the Lambert problem and global optimisation (circular and real-ephemeris models), the parallel speedup experiment, the local optimisation methods and the local versus global comparison. They run on every push with GitHub Actions.
+The repository has automated tests (`pytest`): orders of convergence of the integrators, multistep methods, the Gauss–Jackson integrator, the state-transition matrix, the restricted three-body model, the Lambert problem and global optimisation (circular and real-ephemeris models), the parallel speedup experiment, the local optimisation methods and the local versus global comparison. They run on every push with GitHub Actions.
 
 ## Possible extensions
 
 - Comparison with the MATLAB implementations beyond the convergence studies (long-time energy and angular momentum).
 - Study of other eccentricities and longer integration times.
-- Planar circular restricted three-body problem.
+- Integrators of this repository on the restricted three-body problem: generalised Störmer–Verlet scheme for the Coriolis term, and Gauss–Jackson in the inertial frame.
+
+## Bibliography
+
+**Symplectic and numerical integration**
+
+1. E. Hairer, C. Lubich, G. Wanner, *Geometric Numerical Integration*, Springer (2006). Symplectic methods, Störmer–Verlet, symplecticity of the flow and of Runge–Kutta methods.
+2. E. Hairer, S. P. Nørsett, G. Wanner, *Solving Ordinary Differential Equations I: Nonstiff Problems*, Springer (1987). Arenstorf orbit and DOP853, used as reference integrator.
+3. H. Goldstein, C. Poole, J. Safko, *Classical Mechanics* (Italian edition: *Meccanica Classica*, 2nd ed., Pearson Education, 2002). Hamiltonian formulation and canonical variables.
+4. Lectures and laboratories of the Scientific Computing course (Università di Napoli Federico II, 2023/24): Adams-type multistep methods and local optimisation methods.
+
+**Astrodynamics**
+
+5. D. A. Vallado, with technical contributions by W. D. McClain, *Fundamentals of Astrodynamics and Applications*, Space Technology Series, McGraw-Hill (1997). Integrators and the Gauss–Jackson method (Sec. 7.5), variational equations (Sec. 9.5.3), Lambert's problem.
+6. R. R. Bate, D. D. Mueller, J. E. White, *Fundamentals of Astrodynamics*, Dover (1971). Kepler problem and Kepler's equation.
+7. M. M. Berry, L. M. Healy, "Implementation of Gauss–Jackson integration for orbit propagation", *Journal of the Astronautical Sciences* 52 (2004), 331–357. Summed-ordinate form of the method, which is not implemented here.
+8. H. D. Curtis, *Orbital Mechanics for Engineering Students*, Butterworth-Heinemann. Lambert's problem with universal variables, Hohmann transfer.
+9. R. F. Arenstorf, "Periodic solutions of the restricted three body problem representing analytic continuations of Keplerian elliptic motions", *American Journal of Mathematics* 85 (1963), 27–35.
+10. W. S. Koon, M. W. Lo, J. E. Marsden, S. D. Ross, *Dynamical Systems, the Three-Body Problem and Space Mission Design* (2006). Restricted three-body problem and Jacobi constant.
+11. J. D. Cook, "Arenstorf orbit", blog post, 8 February 2020 (https://www.johndcook.com/blog/2020/02/08/arenstorf-orbit/). Source of the initial data digits.
+
+**Optimisation and parallel computing**
+
+12. R. Storn, K. Price, "Differential evolution – a simple and efficient heuristic for global optimization over continuous spaces", *Journal of Global Optimization* 11 (1997), 341–359.
+13. R. H. Byrd, P. Lu, J. Nocedal, C. Zhu, "A limited memory algorithm for bound constrained optimization", *SIAM Journal on Scientific Computing* 16 (1995), 1190–1208 (L-BFGS-B).
+14. L. Armijo, "Minimization of functions having Lipschitz continuous first partial derivatives", *Pacific Journal of Mathematics* 16 (1966), 1–3.
+15. G. M. Amdahl, "Validity of the single processor approach to achieving large scale computing capabilities", *AFIPS Conference Proceedings* 30 (1967), 483–485.
+
+**Software**
+
+16. P. Virtanen et al., "SciPy 1.0: fundamental algorithms for scientific computing in Python", *Nature Methods* 17 (2020), 261–272.
+17. C. R. Harris et al., "Array programming with NumPy", *Nature* 585 (2020), 357–362.
+18. Astropy Collaboration, "The Astropy Project: sustaining and growing a community-oriented open-source project and the latest major release (v5.0) of the core package", *The Astrophysical Journal* 935 (2022), 167. Built-in ephemeris.
+19. J. D. Hunter, "Matplotlib: a 2D graphics environment", *Computing in Science & Engineering* 9 (2007), 90–95.
