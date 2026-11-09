@@ -31,13 +31,14 @@ Kepler problem in normalised units (mu = 1, semi-major axis a = 1) with eccentri
 - `multistep_convergence.py`: observed orders of the multistep methods on the Kepler problem.
 - `multistep_orbits.py`: Kepler orbits computed with the multistep methods.
 - `variational.py`, `variational_study.py`: variational equations and state-transition matrix for each integrator; symplecticity check and linear versus Monte Carlo covariance; saves `figures/variational_*.png`.
+- `sampled_vs_linear_volume.py`: statistical volume of a propagated Gaussian cloud on the Kepler problem, sampled versus linear, with DOP853 (parallel over samples) and Störmer–Verlet (vectorised) as propagators.
 - `pcr3bp.py`: planar circular restricted three-body problem (model, Hamiltonian, Jacobi constant) and the Arenstorf orbit.
 - `gauss_jackson.py`: Gauss–Jackson (Störmer–Cowell) integrator for second-order problems.
 - `local_optimisation.py`: Newton and gradient methods (steepest descent, conjugate gradient, least squares) for unconstrained minimisation, tested on the Rosenbrock function
 - `trajectory_optimisation.py`: global optimisation of an Earth–Mars or Earth–Venus transfer (Lambert solver and differential evolution), with a circular coplanar model and a model with real ephemerides (astropy); saves pork-chop plots in `figures/`.
 - `compare_local_global.py`: comparison of a local method (L-BFGS-B from random starting points) with differential evolution on the Earth–Mars cost
 - `parallel_speedup.py`: strong-scaling test of the search with several worker processes; saves `figures/speedup.png`.
-- `tests/test_kepler.py`, `tests/test_multistep.py`, `tests/test_gauss_jackson.py`, `tests/test_variational.py`, `tests/test_pcr3bp.py`, `tests/test_trajectory_optimisation.py`,`tests/test_local_optimisation.py`, `tests/test_compare_local_global.py`, `tests/test_parallel_speedup.py`: automated tests with pytest.
+- `tests/test_kepler.py`, `tests/test_multistep.py`, `tests/test_gauss_jackson.py`, `tests/test_variational.py`, `tests/test_pcr3bp.py`, `tests/test_trajectory_optimisation.py`,`tests/test_local_optimisation.py`, `tests/test_compare_local_global.py`, `tests/test_parallel_speedup.py`, `tests/test_sampled_vs_linear_volume.py`: automated tests with pytest.
 - `requirements.txt`: required libraries.
 
 ## Usage
@@ -48,6 +49,7 @@ source .venv/bin/activate
 pip install -r requirements.txt
 python3 convergence.py
 python3 orbits.py
+python3 sampled_vs_linear_volume.py
 python3 trajectory_optimisation.py mars
 python3 trajectory_optimisation.py venus --start 2026-10-01 --end 2028-12-01
 python3 trajectory_optimisation.py mars --model circular
@@ -115,6 +117,25 @@ The three symplectic methods stay at the level of round-off amplified by ‖Φ�
 **Linear covariance.** With an initial covariance P₀ = σ²I, the linear propagation P(t) = Φ P₀ Φᵀ is compared with the sample covariance of a Monte Carlo cloud (2,000 points, exact flow computed with DOP853). The relative error stays below 10% for σ = 10⁻⁵ over the 10 periods computed, but is already 16% after 2 periods for σ = 10⁻⁴ and 78% after 1 period for σ = 10⁻³: along the orbit the cloud is stretched along-track and stops being Gaussian, because the period depends on the energy.
 
 ![Linear covariance versus Monte Carlo](figures/variational_covariance.png)
+
+### Sampled versus linear statistical volume
+
+`sampled_vs_linear_volume.py` compares two ways of computing the statistical volume √det P of an initial Gaussian cloud P₀ = σ²I on the Kepler problem (e = 0.7, pericentre start, Cartesian coordinates). The linear propagation P(t) = Φ P₀ Φᵀ has constant volume √det P₀, because det Φ = 1. The sampled volume is √det of the sample covariance of N = 2000 points propagated with the nonlinear flow. The table gives the ratio sampled / linear after one period (seed 0; the ratio at t = 0 is 1.008, which is the sampling noise of the covariance).
+
+| σ | DOP853 | Verlet, 400 steps/period | 800 | 1600 | 3200 |
+|---|---|---|---|---|---|
+| 1e-10 | 1.035 | 1.026 | 1.034 | 1.035 | 1.035 |
+| 1e-9 | 2.57 | 2.18 | 2.55 | 2.57 | 2.57 |
+| 1e-8 | 23.7 | 19.4 | 23.5 | 23.7 | 23.7 |
+| 1e-6 | 2365 | 1935 | 2349 | 2368 | 2366 |
+
+- Up to half a period the ratio stays at the sampling-noise level (1.008) for every σ tried; it departs from it after one period, and the departure grows with σ.
+- DOP853 (tolerance 1e-12, adaptive) and Störmer–Verlet agree within about 0.1% from 1600 steps per period, so the effect is not an artefact of the integrator. With 400 steps per period Verlet underestimates the ratio by about 15–18% for σ ≥ 1e-9 (the effect is too small to see at 1e-10).
+- Each sample is independent, so the DOP853 propagation is distributed over worker processes with `multiprocessing.Pool`; Verlet is vectorised over all samples.
+- The growth is consistent with the cloud being stretched along the orbit (the period depends on the energy) and curved, so that the Cartesian covariance is no longer a good description of it. This explanation has not been tested here, for instance with a different set of coordinates.
+- Single configuration: one eccentricity, one seed, N = 2000, one period; for σ = 1e-10 the integrator tolerance is close to the size of the effect, so only the first digits are reliable. The order of the Verlet error was not measured.
+
+`tests/test_sampled_vs_linear_volume.py` checks the sampling at t = 0, the energy and the period of the orbit, the shape of the propagated cloud, the linear limit, the growth with σ and the agreement between Verlet and DOP853.
 
 ### Planar circular restricted three-body problem
 
@@ -241,12 +262,13 @@ A local method needs a good starting point; the global search above
 
 ## Tests
 
-The repository has automated tests (`pytest`): orders of convergence of the integrators, multistep methods, the Gauss–Jackson integrator, the state-transition matrix, the restricted three-body model, the Lambert problem and global optimisation (circular and real-ephemeris models), the parallel speedup experiment, the local optimisation methods and the local versus global comparison. They run on every push with GitHub Actions.
+The repository has automated tests (`pytest`): orders of convergence of the integrators, multistep methods, the Gauss–Jackson integrator, the state-transition matrix, the restricted three-body model, the Lambert problem and global optimisation (circular and real-ephemeris models), the parallel speedup experiment, the local optimisation methods, the local versus global comparison and the sampled versus linear volume study. They run on every push with GitHub Actions.
 
 ## Possible extensions
 
 - Comparison with the MATLAB implementations beyond the convergence studies (long-time energy and angular momentum).
 - Study of other eccentricities and longer integration times.
+- Sampled versus linear volume in other coordinates (for example Delaunay variables), other eccentricities and a non-conservative force (drag), where det Φ is no longer 1.
 - Integrators of this repository on the restricted three-body problem: generalised Störmer–Verlet scheme for the Coriolis term, and Gauss–Jackson in the inertial frame.
 
 ## Bibliography
