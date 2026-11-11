@@ -4,7 +4,7 @@
 
 Kepler integrators, Adams-type multistep methods and global trajectory optimisation, in Python.
 
-A comparison of numerical integrators applied to the Kepler problem, rewritten in Python from the MATLAB programs developed for my M.Sc. thesis in Mathematics on symplectic integrators, and extended with the Adams-type multistep methods of a numerical analysis course.
+Python versions of the MATLAB programs from my M.Sc. thesis in Mathematics on symplectic integrators, applied to the Kepler problem. I added the Adams-type multistep methods of a numerical analysis course, a Gauss–Jackson integrator, global trajectory optimisation and a study of the statistical volume of a propagated cloud.
 
 The MATLAB versions are in [numerical-methods-matlab](https://github.com/luigivarriale9/numerical-methods-matlab).
 
@@ -131,9 +131,12 @@ The three symplectic methods stay at the level of round-off amplified by ‖Φ�
 
 - Up to half a period the ratio stays at the sampling-noise level (1.008) for every σ tried; it departs from it after one period, and the departure grows with σ.
 - DOP853 (tolerance 1e-12, adaptive) and Störmer–Verlet agree within about 0.1% from 1600 steps per period, so the effect is not an artefact of the integrator. With 400 steps per period Verlet underestimates the ratio by about 15–18% for σ ≥ 1e-9 (the effect is too small to see at 1e-10).
-- Each sample is independent, so the DOP853 propagation is distributed over worker processes with `multiprocessing.Pool`; Verlet is vectorised over all samples.
-- The growth is consistent with the cloud being stretched along the orbit (the period depends on the energy) and curved, so that the Cartesian covariance is no longer a good description of it. This explanation has not been tested here, for instance with a different set of coordinates.
-- Single configuration: one eccentricity, one seed, N = 2000, one period; for σ = 1e-10 the integrator tolerance is close to the size of the effect, so only the first digits are reliable. The order of the Verlet error was not measured.
+- Each sample is independent. DOP853 is distributed over worker processes with `multiprocessing.Pool`. Verlet is vectorised over all samples with NumPy, not distributed over processes. `python3 sampled_vs_linear_volume.py --speedup [N]` measures the strong scaling (serial loop, 1 to 8 processes, vectorised Verlet).
+  Measured with N = 4000 samples, one period and 10 logical CPUs: the serial loop takes 26.5 s. With 1, 2, 4 and 8 processes the time is 27.2, 13.8, 7.2 and 3.8 s, i.e. speedups of 0.98, 1.92, 3.71 and 6.91 (efficiency 0.98, 0.96, 0.93 and 0.86). Vectorised Verlet with 1600 steps per period takes 0.32 s: 83 times faster than the serial loop and about 12 times faster than DOP853 with 8 processes. The methods differ. Verlet has a fixed step (about 0.1% error on the Cartesian ratio at this step) and DOP853 is adaptive with tolerance 1e-12. Part of the gap is accuracy, not only vectorisation.
+- In Delaunay variables (l, g, L, G), a canonical change of variables with |det J| = 1, the same cloud gives a ratio close to 1: 0.99999 for σ = 1e-8 and 1.003 for σ = 1e-6 after one period (DOP853; reference computed from the same samples at t = 0). The Kepler flow is a shear in these variables (L, G, g constant, l = l₀ + t), so the cloud stays nearly linear. This is consistent with the Cartesian growth coming from stretching along the orbit (the period depends on the energy) and curvature of the cloud. The conversion was checked by a round trip and by the Jacobian determinant.
+- Verlet in Delaunay variables at σ = 1e-6 converges to DOP853 as the step is reduced (400, 800, 1600, 3200, 6400 steps per period: 1.52, 1.49, 1.06, 1.011, 1.005; DOP853: 1.003), so the difference at coarse steps is discretisation error. Over several periods the Verlet ratio in Delaunay variables drifts away from 1 (σ = 1e-8, 1600 steps: 1.04 after 5 periods, 1.92 after 10). This is accumulated phase error, not an effect of the flow.
+- Checks. The DOP853 tolerance (1e-10 to 1e-13) does not change the result at σ = 1e-8. Over 10 seeds (N = 10000, Verlet, 1600 steps) the standard deviation of the Cartesian ratio is about 1.2%. In Cartesian coordinates the ratio grows roughly with the cube of the number of periods. It depends strongly on the eccentricity (σ = 1e-8, N = 500, one period, one seed): 0.99 for e = 0.1, 1.005 for e = 0.5, 23.6 for e = 0.7 and 1.3e6 for e = 0.9; in Delaunay variables 1.0 up to e = 0.7 and 1.12 for e = 0.9.
+- One initial condition (pericentre start), planar problem. I did not study the effect of the initial phase.
 
 `tests/test_sampled_vs_linear_volume.py` checks the sampling at t = 0, the energy and the period of the orbit, the shape of the propagated cloud, the linear limit, the growth with σ and the agreement between Verlet and DOP853.
 
@@ -268,7 +271,7 @@ The repository has automated tests (`pytest`): orders of convergence of the inte
 
 - Comparison with the MATLAB implementations beyond the convergence studies (long-time energy and angular momentum).
 - Study of other eccentricities and longer integration times.
-- Sampled versus linear volume in other coordinates (for example Delaunay variables), other eccentricities and a non-conservative force (drag), where det Φ is no longer 1.
+- Sampled versus linear volume with a non-conservative force (drag), where det Φ is no longer 1, and other initial phases.
 - Integrators of this repository on the restricted three-body problem: generalised Störmer–Verlet scheme for the Coriolis term, and Gauss–Jackson in the inertial frame.
 
 ## Bibliography
