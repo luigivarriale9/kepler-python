@@ -34,9 +34,9 @@ Kepler problem in normalised units (mu = 1, semi-major axis a = 1) with eccentri
 - `sampled_vs_linear_volume.py`: statistical volume of a propagated Gaussian cloud on the Kepler problem, sampled versus linear, with DOP853 (parallel over samples) and Störmer–Verlet (vectorised) as propagators.
 - `pcr3bp.py`: planar circular restricted three-body problem (model, Hamiltonian, Jacobi constant) and the Arenstorf orbit.
 - `gauss_jackson.py`: Gauss–Jackson (Störmer–Cowell) integrator for second-order problems.
-- `local_optimisation.py`: Newton and gradient methods (steepest descent, conjugate gradient, least squares) for unconstrained minimisation, tested on the Rosenbrock function
+- `local_optimisation.py`: Newton and gradient methods (steepest descent, conjugate gradient, least squares) for unconstrained minimisation, tested on the Rosenbrock function.
 - `trajectory_optimisation.py`: global optimisation of an Earth–Mars or Earth–Venus transfer (Lambert solver and differential evolution), with a circular coplanar model and a model with real ephemerides (astropy); saves pork-chop plots in `figures/`.
-- `compare_local_global.py`: comparison of a local method (L-BFGS-B from random starting points) with differential evolution on the Earth–Mars cost
+- `compare_local_global.py`: comparison of a local method (L-BFGS-B from random starting points) with differential evolution on the Earth–Mars cost.
 - `parallel_speedup.py`: strong-scaling test of the search with several worker processes; saves `figures/speedup.png`.
 - `tests/test_kepler.py`, `tests/test_multistep.py`, `tests/test_gauss_jackson.py`, `tests/test_variational.py`, `tests/test_pcr3bp.py`, `tests/test_trajectory_optimisation.py`,`tests/test_local_optimisation.py`, `tests/test_compare_local_global.py`, `tests/test_parallel_speedup.py`, `tests/test_sampled_vs_linear_volume.py`: automated tests with pytest.
 - `requirements.txt`: required libraries.
@@ -106,13 +106,13 @@ The exact flow of a Hamiltonian system is symplectic: ΦᵀJΦ = J and det Φ = 
 |---|---|---|---|
 | Explicit Euler | 7.7e-01 | 5.3e+02 (orbit has left the ellipse) | −2.1e-01 |
 | Symplectic Euler | 1.3e-10 | 1.5e-07 | −4.5e-09 |
-| Implicit midpoint | 3.7e-11 | 4.6e-08 | −1.8e-11 |
+| Implicit midpoint | 1.1e-10 | 5.4e-09 | −5.7e-11 |
 | Störmer–Verlet | 3.5e-11 | 1.1e-08 | 7.8e-12 |
 | RK4 (not symplectic) | 5.1e-04 | 1.6e-01 | −1.4e-05 |
 
 ![Symplecticity of the transition matrix](figures/variational_symplecticity.png)
 
-The three symplectic methods stay at the level of round-off amplified by ‖Φ‖ (about 2·10³ in spectral norm after one period for e = 0.7), whereas RK4 drifts steadily even though its trajectory is far more accurate. The matrix Φ of Störmer–Verlet converges with order 2 (observed 1.98).
+The three symplectic methods stay at the level of round-off amplified by ‖Φ‖ (about 2·10³ in spectral norm after one period for e = 0.7), whereas RK4 drifts steadily even though its trajectory is far more accurate. The matrix Φ of Störmer–Verlet converges with order 2 (observed 1.98). The values in the table are at round-off level, so their last digits change slightly between machines and library versions.
 
 **Linear covariance.** With an initial covariance P₀ = σ²I, the linear propagation P(t) = Φ P₀ Φᵀ is compared with the sample covariance of a Monte Carlo cloud (2,000 points, exact flow computed with DOP853). The relative error stays below 10% for σ = 10⁻⁵ over the 10 periods computed, but is already 16% after 2 periods for σ = 10⁻⁴ and 78% after 1 period for σ = 10⁻³: along the orbit the cloud is stretched along-track and stops being Gaussian, because the period depends on the energy.
 
@@ -144,7 +144,7 @@ The three symplectic methods stay at the level of round-off amplified by ‖Φ�
 
 `pcr3bp.py` contains the model of the planar circular restricted three-body problem in the rotating frame (normalised units, μ = 0.012277471, Earth–Moon case): the equations of motion in the variables (x, y, vx, vy), the change to the canonical variables q = (x, y), p = (vx − y, vy + x), the Hamiltonian H = ½|p|² + y pₓ − x p_y − (1 − μ)/r₁ − μ/r₂ and the Jacobi constant C = −2H. The test case is the periodic Arenstorf orbit (initial data and period from Hairer, Nørsett and Wanner; the digits were checked by closing the orbit).
 
-Checked by `tests/test_pcr3bp.py`: the canonical change of variables is invertible, H equals the energy written with the velocities, the orbit closes after one period (distance from the initial state 1.8e-09 with DOP853) and the Jacobi constant is conserved along it (variation 1e-11 around C = 2.8564).
+Checked by `tests/test_pcr3bp.py`: the canonical change of variables is invertible, H equals the energy written with the velocities, the orbit closes after one period (distance from the initial state about 1e-9 with DOP853, rtol = atol = 1e-12) and the Jacobi constant is conserved along it (variation below 1e-10 around C = 2.8564).
 
 The comparison of explicit Euler, symplectic Euler, implicit midpoint and Störmer–Verlet on this orbit is in the MATLAB repository ([numerical-methods-matlab](https://github.com/luigivarriale9/numerical-methods-matlab)). In the rotating frame the force depends on the velocity (Coriolis term), so the classical Störmer–Verlet scheme is only first order there; a generalised scheme in canonical variables is planned but not yet implemented here.
 
@@ -265,12 +265,12 @@ A local method needs a good starting point; the global search above
 
 ## Tests
 
-The repository has automated tests (`pytest`): orders of convergence of the integrators, multistep methods, the Gauss–Jackson integrator, the state-transition matrix, the restricted three-body model, the Lambert problem and global optimisation (circular and real-ephemeris models), the parallel speedup experiment, the local optimisation methods, the local versus global comparison and the sampled versus linear volume study. They run on every push with GitHub Actions.
+The repository has 68 automated tests (`pytest`): orders of convergence of the integrators, multistep methods, the Gauss–Jackson integrator, the state-transition matrix, the restricted three-body model, the Lambert problem and global optimisation (circular and real-ephemeris models), the parallel speedup experiment, the local optimisation methods, the local versus global comparison and the sampled versus linear volume study. They run on every push with GitHub Actions.
 
 ## Possible extensions
 
 - Comparison with the MATLAB implementations beyond the convergence studies (long-time energy and angular momentum).
-- Study of other eccentricities and longer integration times.
+- Study of other eccentricities and longer integration times for the integrator comparison (the volume study already covers e = 0.1 to 0.9, indicatively, and up to 10 periods).
 - Sampled versus linear volume with a non-conservative force (drag), where det Φ is no longer 1, and other initial phases.
 - Integrators of this repository on the restricted three-body problem: generalised Störmer–Verlet scheme for the Coriolis term, and Gauss–Jackson in the inertial frame.
 
