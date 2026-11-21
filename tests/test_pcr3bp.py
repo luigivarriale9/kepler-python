@@ -1,8 +1,10 @@
 import numpy as np
+import pytest
 from scipy.integrate import solve_ivp
 
-from pcr3bp import (MU, T_ARENSTORF, Y0_ARENSTORF, from_canonical, hamiltonian, jacobi,
-                   rhs, to_canonical)
+from pcr3bp import (MU, T_ARENSTORF, Y0_ARENSTORF, acceleration, from_canonical, hamiltonian,
+                    jacobi, lagrange_points, rescale_to_jacobi, rhs, to_canonical,
+                    zero_velocity_jacobi)
 
 
 def _reference():
@@ -33,3 +35,49 @@ def test_jacobi_constant_is_conserved_along_the_orbit():
     sol = _reference()
     c = np.array([jacobi(sol.y[:, i]) for i in range(sol.y.shape[1])])
     assert c.max() - c.min() < 1e-9
+
+
+def _random_states(n=6, seed=0):
+    rng = np.random.default_rng(seed)
+    return np.column_stack([rng.uniform(-1.2, 1.2, n), rng.uniform(0.1, 1.0, n),
+                            rng.normal(size=n), rng.normal(size=n)])
+
+
+def test_acceleration_is_the_acceleration_part_of_rhs():
+    for s in _random_states():
+        assert np.array_equal(acceleration(s[:2], s[2:]), rhs(0.0, s)[2:])
+
+
+def test_jacobi_is_minus_twice_the_hamiltonian_for_one_state_and_for_an_array():
+    S = _random_states()
+    expected = [-2 * hamiltonian(to_canonical(s)) for s in S]
+    assert np.allclose(jacobi(S), expected, atol=1e-12)
+    assert np.ndim(jacobi(S[0])) == 0
+
+
+def test_zero_velocity_jacobi_is_jacobi_of_a_state_at_rest():
+    x, y = 0.3, -0.4
+    assert zero_velocity_jacobi(x, y) == pytest.approx(jacobi(np.array([x, y, 0.0, 0.0])), abs=1e-14)
+
+
+def test_rescaling_gives_the_requested_constant_and_keeps_position_and_direction():
+    s = np.array([0.9, 0.0455, -0.5322, 0.2])
+    out = rescale_to_jacobi(s, 3.0)
+    assert jacobi(out) == pytest.approx(3.0, abs=1e-12)
+    assert np.array_equal(out[:2], s[:2])
+    assert abs(out[2] * s[3] - out[3] * s[2]) < 1e-12
+
+
+def test_rescaling_refuses_a_constant_with_no_real_velocity():
+    s = np.array([0.9, 0.0455, -0.5322, 0.2])
+    with pytest.raises(ValueError):
+        rescale_to_jacobi(s, zero_velocity_jacobi(s[0], s[1]) + 0.1)
+
+
+def test_lagrange_points_are_equilibria_and_l4_is_equilateral():
+    for mu in (MU, 1.215e-2):
+        L = lagrange_points(mu)
+        for x, y in L:
+            assert np.max(np.abs(rhs(0.0, np.array([x, y, 0.0, 0.0]), mu)[2:])) < 1e-9
+        assert np.hypot(L[3, 0] + mu, L[3, 1]) == pytest.approx(1.0)
+        assert np.hypot(L[3, 0] - 1 + mu, L[3, 1]) == pytest.approx(1.0)
