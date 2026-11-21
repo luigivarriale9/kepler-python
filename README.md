@@ -32,13 +32,16 @@ Kepler problem in normalised units (mu = 1, semi-major axis a = 1) with eccentri
 - `multistep_orbits.py`: Kepler orbits computed with the multistep methods.
 - `variational.py`, `variational_study.py`: variational equations and state-transition matrix for each integrator; symplecticity check and linear versus Monte Carlo covariance; saves `figures/variational_*.png`.
 - `sampled_vs_linear_volume.py`: statistical volume of a propagated Gaussian cloud on the Kepler problem, sampled versus linear, with DOP853 (parallel over samples) and Störmer–Verlet (vectorised) as propagators.
-- `pcr3bp.py`: planar circular restricted three-body problem (model, Hamiltonian, Jacobi constant) and the Arenstorf orbit.
+- `pcr3bp.py`: planar circular restricted three-body problem: equations of motion, acceleration, canonical variables, Hamiltonian, Jacobi constant, forbidden region, Lagrange points and the Arenstorf orbit.
+- `pcr3bp_orbit.py`: figures of the Arenstorf orbit, the Jacobi constant along it and the zero-velocity curves; saves `figures/pcr3bp_arenstorf.png` and `figures/pcr3bp_jacobi_curves.png`.
+- `arenstorf_comparison.py`: comparison of RK45, implicit midpoint, explicit Euler, Störmer–Verlet and symplectic Euler on the Arenstorf orbit; saves `figures/arenstorf_orbits.png` and `figures/arenstorf_energy.png`.
+- `three_body_comparison.py`: the same integrators on a test trajectory of the restricted three-body problem (C = 3.1624, T = 20), with the forbidden region and the change of the Jacobi constant; saves `figures/cr3bp_trajectories.png` and `figures/cr3bp_jacobi_drift.png`.
 - `gauss_jackson.py`: Gauss–Jackson (Störmer–Cowell) integrator for second-order problems.
 - `local_optimisation.py`: Newton and gradient methods (steepest descent, conjugate gradient, least squares) for unconstrained minimisation, tested on the Rosenbrock function.
 - `trajectory_optimisation.py`: global optimisation of an Earth–Mars or Earth–Venus transfer (Lambert solver and differential evolution), with a circular coplanar model and a model with real ephemerides (astropy); saves pork-chop plots in `figures/`.
 - `compare_local_global.py`: comparison of a local method (L-BFGS-B from random starting points) with differential evolution on the Earth–Mars cost.
 - `parallel_speedup.py`: strong-scaling test of the search with several worker processes; saves `figures/speedup.png`.
-- `tests/test_kepler.py`, `tests/test_multistep.py`, `tests/test_gauss_jackson.py`, `tests/test_variational.py`, `tests/test_pcr3bp.py`, `tests/test_trajectory_optimisation.py`,`tests/test_local_optimisation.py`, `tests/test_compare_local_global.py`, `tests/test_parallel_speedup.py`, `tests/test_sampled_vs_linear_volume.py`: automated tests with pytest.
+- `tests/test_kepler.py`, `tests/test_multistep.py`, `tests/test_gauss_jackson.py`, `tests/test_variational.py`, `tests/test_pcr3bp.py`, `tests/test_generic_steps.py`, `tests/test_arenstorf_comparison.py`, `tests/test_three_body_comparison.py`, `tests/test_trajectory_optimisation.py`,`tests/test_local_optimisation.py`, `tests/test_compare_local_global.py`, `tests/test_parallel_speedup.py`, `tests/test_sampled_vs_linear_volume.py`: automated tests with pytest.
 - `requirements.txt`: required libraries.
 
 ## Usage
@@ -105,14 +108,14 @@ The exact flow of a Hamiltonian system is symplectic: ΦᵀJΦ = J and det Φ = 
 | Method | ‖ΦᵀJΦ − J‖ after 1 period | after 20 periods | det Φ − 1 after 20 periods |
 |---|---|---|---|
 | Explicit Euler | 7.7e-01 | 5.3e+02 (orbit has left the ellipse) | −2.1e-01 |
-| Symplectic Euler | 1.3e-10 | 1.5e-07 | −4.5e-09 |
-| Implicit midpoint | 1.1e-10 | 5.4e-09 | −5.7e-11 |
-| Störmer–Verlet | 3.5e-11 | 1.1e-08 | 7.8e-12 |
+| Symplectic Euler | 5.6e-11 | 7.9e-09 | 1.8e-09 |
+| Implicit midpoint | 1.3e-10 | 1.1e-07 | −1.4e-11 |
+| Störmer–Verlet | 7.2e-11 | 9.3e-08 | −4.3e-11 |
 | RK4 (not symplectic) | 5.1e-04 | 1.6e-01 | −1.4e-05 |
 
 ![Symplecticity of the transition matrix](figures/variational_symplecticity.png)
 
-The three symplectic methods stay at the level of round-off amplified by ‖Φ‖ (about 2·10³ in spectral norm after one period for e = 0.7), whereas RK4 drifts steadily even though its trajectory is far more accurate. The matrix Φ of Störmer–Verlet converges with order 2 (observed 1.98). The values in the table are at round-off level, so their last digits change slightly between machines and library versions.
+The three symplectic methods stay at the level of round-off amplified by ‖Φ‖ (about 2·10³ in spectral norm after one period for e = 0.7), whereas RK4 drifts steadily even though its trajectory is far more accurate. The matrix Φ of Störmer–Verlet converges with order 2 (observed 1.98). The values of the three symplectic methods are at round-off level, so they depend on the platform and on the library versions and can change by about an order of magnitude (Störmer–Verlet after 20 periods: 1.1e-08 on one setup, 9.3e-08 on another). The table and the figures come from the same run.
 
 **Linear covariance.** With an initial covariance P₀ = σ²I, the linear propagation P(t) = Φ P₀ Φᵀ is compared with the sample covariance of a Monte Carlo cloud (2,000 points, exact flow computed with DOP853). The relative error stays below 10% for σ = 10⁻⁵ over the 10 periods computed, but is already 16% after 2 periods for σ = 10⁻⁴ and 78% after 1 period for σ = 10⁻³: along the orbit the cloud is stretched along-track and stops being Gaussian, because the period depends on the energy.
 
@@ -146,7 +149,50 @@ The three symplectic methods stay at the level of round-off amplified by ‖Φ�
 
 Checked by `tests/test_pcr3bp.py`: the canonical change of variables is invertible, H equals the energy written with the velocities, the orbit closes after one period (distance from the initial state about 1e-9 with DOP853, rtol = atol = 1e-12) and the Jacobi constant is conserved along it (variation below 1e-10 around C = 2.8564).
 
-The comparison of explicit Euler, symplectic Euler, implicit midpoint and Störmer–Verlet on this orbit is in the MATLAB repository ([numerical-methods-matlab](https://github.com/luigivarriale9/numerical-methods-matlab)). In the rotating frame the force depends on the velocity (Coriolis term), so the classical Störmer–Verlet scheme is only first order there; a generalised scheme in canonical variables is planned but not yet implemented here.
+`pcr3bp_orbit.py` draws the orbit and the Jacobi constant along it. With DOP853 (rtol = atol = 1e-12) the maximum of |C(t) − C(0)| over one period is 1.55e-11 and the distance from the initial state after one period is 1.64e-09.
+
+![Arenstorf orbit and Jacobi constant](figures/pcr3bp_arenstorf.png)
+
+The Jacobi constant of a state at rest, C(x, y) = x² + y² + 2(1 − μ)/r₁ + 2μ/r₂, gives the forbidden region {C(x, y) < C}. The values at the Lagrange points are C(L1) = 3.189508, C(L2) = 3.173159, C(L3) = 3.012274 and C(L4) = 2.987873. The Arenstorf orbit has C = 2.8564, below all of them, so nothing is forbidden for it; the right panel shows the forbidden region for the example value C = 3.10.
+
+![Zero-velocity curves and forbidden region](figures/pcr3bp_jacobi_curves.png)
+
+#### Integrators on the Arenstorf orbit
+
+`arenstorf_comparison.py` integrates one period with 300000 steps (h = 5.688e-05) using the integrators of `kepler.py`, which now accept a general vector field or an acceleration that depends on the velocity (default: Kepler). RK45 with rtol = atol = 1e-8 is the reference for the energy; the implicit solves use fsolve with xtol = 1e-12.
+
+| Method | Max energy error vs RK45 | Distance from y0 after one period (full state) |
+|---|---|---|
+| RK45 | reference | 1.630e-04 |
+| Implicit midpoint | 4.069e-05 | 4.966e-01 |
+| Störmer–Verlet | 2.072e-04 | 8.513e-01 |
+| Symplectic Euler | 4.627e-03 | 2.124e+00 |
+| Explicit Euler | 2.173e-02 | 1.828e+00 |
+
+![Arenstorf orbit, integrators](figures/arenstorf_orbits.png)
+
+![Energy error](figures/arenstorf_energy.png)
+
+In the figure RK45, implicit midpoint and Störmer–Verlet end on the starting point of the orbit, while the two Euler methods do not. The distances in the table are on the full state (position and velocity), so they are larger than the position error alone. The largest energy errors of both Euler methods appear in the first steps, where the orbit starts about 0.006 from the Moon. In the rotating frame the force depends on the velocity (Coriolis term), so the classical Störmer–Verlet scheme is only first order here (checked in `tests/test_arenstorf_comparison.py` with fine steps); a generalised scheme in canonical variables is not implemented.
+
+#### Test trajectory with the forbidden region
+
+`three_body_comparison.py` is the Python version of `three_body_problem.m` of the MATLAB repository ([numerical-methods-matlab](https://github.com/luigivarriale9/numerical-methods-matlab)): μ = 1.215e-2, T = 20, C = 3.162405 (the initial velocity can be rescaled to another C with `--c`), 15394 steps for midpoint and Störmer–Verlet, 120000 for symplectic Euler and 700000 for explicit Euler. The state is planar because z = vz = 0 for this case.
+
+| Method | max abs(ΔC) | ΔC at t = 20 |
+|---|---|---|
+| RK45, default tolerances (78 steps) | 4.218e-02 | +3.968e-02 |
+| Implicit midpoint | 1.652e-05 | +6.782e-06 |
+| Explicit Euler | 6.563e-03 | −6.563e-03 |
+| RK45, rtol = atol = 1e-12 | 4.659e-11 | −4.659e-11 |
+| Störmer–Verlet | 3.831e-02 | +3.831e-02 |
+| Symplectic Euler | 7.786e-03 | −7.770e-03 |
+
+![Trajectories and forbidden region](figures/cr3bp_trajectories.png)
+
+![Change of the Jacobi constant](figures/cr3bp_jacobi_drift.png)
+
+The change of C is a staircase for Störmer–Verlet, with the steps at the close approaches to the Moon, while implicit midpoint and RK45 with tight tolerances keep C constant to the plotted precision. The RK45 default result depends on the step-size control of the solver and is not expected to match the MATLAB `ode45` curve.
 
 ### Multistep methods
 
@@ -265,14 +311,14 @@ A local method needs a good starting point; the global search above
 
 ## Tests
 
-The repository has 68 automated tests (`pytest`): orders of convergence of the integrators, multistep methods, the Gauss–Jackson integrator, the state-transition matrix, the restricted three-body model, the Lambert problem and global optimisation (circular and real-ephemeris models), the parallel speedup experiment, the local optimisation methods, the local versus global comparison and the sampled versus linear volume study. They run on every push with GitHub Actions.
+The repository has 96 automated tests (`pytest`): orders of convergence of the integrators, multistep methods, the Gauss–Jackson integrator, the state-transition matrix, the restricted three-body model, the Lambert problem and global optimisation (circular and real-ephemeris models), the parallel speedup experiment, the local optimisation methods, the local versus global comparison and the sampled versus linear volume study. They run on every push with GitHub Actions.
 
 ## Possible extensions
 
 - Comparison with the MATLAB implementations beyond the convergence studies (long-time energy and angular momentum).
 - Study of other eccentricities and longer integration times for the integrator comparison (the volume study already covers e = 0.1 to 0.9, indicatively, and up to 10 periods).
 - Sampled versus linear volume with a non-conservative force (drag), where det Φ is no longer 1, and other initial phases.
-- Integrators of this repository on the restricted three-body problem: generalised Störmer–Verlet scheme for the Coriolis term, and Gauss–Jackson in the inertial frame.
+- Generalised Störmer–Verlet scheme in canonical variables for the Coriolis term of the restricted three-body problem, and Gauss–Jackson in the inertial frame.
 
 ## Bibliography
 

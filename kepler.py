@@ -1,43 +1,63 @@
 import numpy as np
 from scipy.integrate import solve_ivp
+from scipy.optimize import fsolve
 MU=1.0
-def acceleration(q): 
-    """Keplerian acceleration a(q) = -mu q / |q|^3."""  
+def acceleration(q, v=None):
+    """Keplerian acceleration a(q) = -mu q / |q|^3. 
+    v is ignored: it is accepted so that the function can be used as acc(q, v) in the partitioned steps, 
+    where other models (Coriolis) depend on the velocity.""" 
     return -MU * q / np.linalg.norm(q) **3
+
 def rhs(t,y):
     """Right-hand side of the first-order system y = (x, y, vx, vy)."""
     return np.concatenate([y[2:], acceleration(y[:2])])
+
 def initial_state(e=0.7):
     """Pericentre of the orbit with semi-major axis a = 1 and eccentricity e."""
     return np.array([1.0-e,0.0,0.0, np.sqrt((1.0+e)/(1.0-e))])
+
 def energy(y):
     """Specific orbital energy E = v^2/2 - mu/|q|."""
     return 0.5*np.dot(y[2:],y[2:])-MU/np.linalg.norm(y[:2])
+
 def angular_momentum(y):
     """Angular momentum L = x*vy - y*vx (planar motion)."""
     return y[0]*y[3]-y[1]*y[2]
 
-def euler_step(y,h):
-    return y+h*rhs(0.0,y)
+def euler_step(y,h,f=rhs):
+    """Explicit Euler; f(t, y) is the right-hand side (Kepler by default)."""
+    return y+h*f(0.0,y)
 
-def symplectic_euler_step(y,h):
-    q,p=y[:2],y[2:]
-    p_new=p+h*acceleration(q)
+def symplectic_euler_step(y,h,acc=acceleration,implicit=False):
+    """Symplectic Euler for q' = p, p' = acc(q, p), with y = (q, p).
+    implicit=False updates p explicitly (acc evaluated at the old p); 
+    implicit=True solves p_new = p + h acc(q, p_new),
+    needed when acc depends on p (e.g. the Coriolis term)."""
+    m=len(y)//2
+    q,p=y[:m],y[m:]
+    if implicit:
+        p_new=fsolve(lambda x: x-p-h*acc(q,x), p, xtol=1e-12)
+    else:
+        p_new=p+h*acc(q,p)
     q_new=q+h*p_new
     return np.concatenate([q_new,p_new])
 
-from scipy.optimize import fsolve
-def midpoint_step_fsolve(y,h):
+def midpoint_step_fsolve(y,h,f=rhs,xtol=1.49012e-08):
+    """Implicit midpoint; xtol is the tolerance of fsolve (its default value by default)."""
     def F(z):
-        return z-y-h*rhs(0.0, 0.5*(y+z))
-    z0=y+h*rhs(0.0,y)
-    return fsolve(F,z0)
+        return z-y-h*f(0.0, 0.5*(y+z))
+    z0=y+h*f(0.0,y)
+    return fsolve(F,z0,xtol=xtol)
 
-def verlet_step(y,h):
-    q,p=y[:2],y[2:]
-    p_half=p+0.5*h*acceleration(q)
+def verlet_step(y,h,acc=acceleration):
+    """Stormer-Verlet for q' = p, p' = acc(q, p), with y = (q, p). 
+    Second order if acc does not depend on p; if it does (Coriolis) the scheme is only
+    first order, because p enters acc explicitly and the step is no longer symmetric."""
+    m=len(y)//2
+    q,p=y[:m],y[m:]
+    p_half=p+0.5*h*acc(q,p)
     q_new=q+h*p_half
-    p_new=p_half+0.5*h*acceleration(q_new)
+    p_new=p_half+0.5*h*acc(q_new,p_half)
     return np.concatenate([q_new,p_new])
 
 def integrate(step, y0, t_end, n_steps):
