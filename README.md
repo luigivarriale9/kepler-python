@@ -173,7 +173,7 @@ The Jacobi constant of a state at rest, C(x, y) = x² + y² + 2(1 − μ)/r₁ +
 
 ![Energy error](figures/arenstorf_energy.png)
 
-In the figure RK45, implicit midpoint and Störmer–Verlet end on the starting point of the orbit, while the two Euler methods do not. The distances in the table are on the full state (position and velocity), so they are larger than the position error alone. The largest energy errors of both Euler methods appear in the first steps, where the orbit starts about 0.006 from the Moon. In the rotating frame the force depends on the velocity (Coriolis term), so the classical Störmer–Verlet scheme is only first order here (checked in `tests/test_arenstorf_comparison.py` with fine steps); a generalised scheme in canonical variables is not implemented.
+In the figure RK45, implicit midpoint and Störmer–Verlet end on the starting point of the orbit, while the two Euler methods do not. The distances in the table are on the full state (position and velocity), so they are larger than the position error alone. In the figure, explicit Euler gains almost all of its energy error (about 0.021) in the first steps, and symplectic Euler has its peak (4.6e-3) there and then relaxes to a much smaller value; the orbit starts about 0.006 from the Moon. In the rotating frame the force depends on the velocity (Coriolis term), so the classical Störmer–Verlet scheme is only first order here (checked in `tests/test_arenstorf_comparison.py` with fine steps); a generalised scheme in canonical variables is not implemented.
 
 #### Test trajectory with the forbidden region
 
